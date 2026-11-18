@@ -1341,154 +1341,7 @@ if (isset($_POST['bulk_merge_tickets'])) {
 
 }
 
-if (isset($_POST['bulk_resolve_tickets'])) {
-
-    validateCSRFToken();
-
-    enforceUserPermission('module_support', 2);
-
-    // POST variables
-    $details = mysqli_escape_string($mysqli, $_POST['bulk_details']);
-    $ticket_reply_time_worked = escapeSql($_POST['time']);
-    $private_note = intval($_POST['bulk_private_note']);
-    if ($private_note == 1) {
-        $ticket_reply_type = 'Internal';
-    } else {
-        $ticket_reply_type = 'Public';
-    }
-
-    // Resolve Selected Tickets
-    if (isset($_POST['ticket_ids'])) {
-
-        // Intitialze the counts before the loop
-        $ticket_count = 0;
-        $skipped_count = 0;
-
-        foreach ($_POST['ticket_ids'] as $ticket_id) {
-            $ticket_id = intval($ticket_id);
-
-            // Check to make sure Tasks are complete before resolving
-            $row = mysqli_fetch_assoc(mysqli_query($mysqli, "SELECT COUNT('task_id') AS num FROM tasks WHERE task_completed_at IS NULL AND task_ticket_id = $ticket_id"));
-            $num_of_open_tasks = $row['num'];
-
-            if ($num_of_open_tasks == 0) {
-                // Count the Ticket Loop
-                $ticket_count++;
-
-                $sql = mysqli_query($mysqli, "SELECT ticket_client_id, ticket_first_response_at, ticket_number, ticket_prefix, ticket_priority,
-                    ticket_subject, ticket_url_key FROM tickets WHERE ticket_id = $ticket_id");
-                $row = mysqli_fetch_assoc($sql);
-
-                $ticket_prefix = escapeSql($row['ticket_prefix']);
-                $ticket_number = intval($row['ticket_number']);
-                $ticket_subject = escapeSql($row['ticket_subject']);
-                $current_ticket_priority = escapeSql($row['ticket_priority']);
-                $url_key = escapeSql($row['ticket_url_key']);
-                $ticket_first_response_at = escapeSql($row['ticket_first_response_at']);
-                $client_id = intval($row['ticket_client_id']);
-
-                // Don't Enforce Client Access if Ticket doesn't have an assigned client
-                if ($client_id) {
-                    enforceClientAccess();
-                }
-
-                // Mark FR time if required
-                if (empty($ticket_first_response_at)) {
-                    setTicketFirstResponse($ticket_id);
-                }
-
-                // Update ticket & insert reply
-                mysqli_query($mysqli, "UPDATE tickets SET ticket_status = 4, ticket_resolved_at = NOW() WHERE ticket_id = $ticket_id");
-                syncTicketSlaClock($ticket_id);
-                setTicketResolutionSlaMet($ticket_id);
-
-                mysqli_query($mysqli, "INSERT INTO ticket_replies SET ticket_reply = '$details', ticket_reply_type = '$ticket_reply_type', ticket_reply_time_worked = '$ticket_reply_time_worked', ticket_reply_by = $session_user_id, ticket_reply_ticket_id = $ticket_id");
-
-                logTicketHistory($ticket_id, "$session_name resolved the ticket");
-
-                logAudit("Ticket", "Resolve", "$session_name resolved $ticket_prefix$ticket_number - $ticket_subject", $client_id, $ticket_id);
-
-                triggerCustomAction('ticket_resolve', $ticket_id);
-
-                // Client notification email
-                if ((!empty($config_smtp_provider)) && $config_ticket_client_general_notifications == 1 && $private_note == 0) {
-
-                    // Get Contact details
-                    $ticket_sql = mysqli_query($mysqli, "SELECT contact_name, contact_email FROM tickets
-                        LEFT JOIN contacts ON ticket_contact_id = contact_id
-                        WHERE ticket_id = $ticket_id
-                    ");
-                    $row = mysqli_fetch_assoc($ticket_sql);
-
-                    $contact_name = escapeSql($row['contact_name']);
-                    $contact_email = escapeSql($row['contact_email']);
-
-                    // Sanitize Config vars from get_settings.php
-                    $from_name = escapeSql($config_ticket_from_name);
-                    $from_email = escapeSql($config_ticket_from_email);
-                    $base_url = escapeSql($config_base_url);
-
-                    // Get Company Info
-                    $sql = mysqli_query($mysqli, "SELECT company_name, company_phone, company_phone_country_code FROM companies WHERE company_id = 1");
-                    $row = mysqli_fetch_assoc($sql);
-                    $company_name = escapeSql($row['company_name']);
-                    $company_phone = escapeSql(formatPhoneNumber($row['company_phone'], $row['company_phone_country_code']));
-
-                    // EMAIL
-                    $subject = "Ticket resolved - [$ticket_prefix$ticket_number] - $ticket_subject | (pending closure)";
-                    $body = "<i style=\'color: #808080\'>##- Please type your reply above this line -##</i><br><br>Hello $contact_name,<br><br>Your ticket regarding \"$ticket_subject\" has been marked as solved and is pending closure.<br><br>$details<br><br> If your request/issue is resolved, you can simply ignore this email. If you need further assistance, please reply or <a href=\'https://$config_base_url/guest/guest_view_ticket.php?ticket_id=$ticket_id&url_key=$url_key\'>re-open</a> to let us know! <br><br>Ticket: $ticket_prefix$ticket_number<br>Subject: $ticket_subject<br>Portal: https://$base_url/client/ticket.php?id=$ticket_id<br><br>--<br>$company_name - Support<br>$config_ticket_from_email<br>$company_phone";
-
-                    // Check email valid
-                    if (filter_var($contact_email, FILTER_VALIDATE_EMAIL)) {
-
-                        $data = [];
-
-                        // Email Ticket Contact
-                        // Queue Mail
-
-                        $data[] = [
-                            'from' => $from_email,
-                            'from_name' => $from_name,
-                            'recipient' => $contact_email,
-                            'recipient_name' => $contact_name,
-                            'subject' => $subject,
-                            'body' => $body
-                        ];
-                    }
-
-                    // Also Email all the watchers
-                    $sql_watchers = mysqli_query($mysqli, "SELECT watcher_email FROM ticket_watchers WHERE watcher_ticket_id = $ticket_id");
-                    $body .= "<br><br>----------------------------------------<br>YOU ARE A COLLABORATOR ON THIS TICKET";
-                    while ($row = mysqli_fetch_assoc($sql_watchers)) {
-                        $watcher_email = escapeSql($row['watcher_email']);
-
-                        // Queue Mail
-                        $data[] = [
-                            'from' => $from_email,
-                            'from_name' => $from_name,
-                            'recipient' => $watcher_email,
-                            'recipient_name' => $watcher_email,
-                            'subject' => $subject,
-                            'body' => $body
-                        ];
-                    }
-                    addToMailQueue($data);
-                } // End Mail IF
-            } else {
-                 $skipped_count++;
-            } // End Task Check
-        } // End Loop
-    } // End Array Empty Check
-
-    flashAlert("Resolved <strong>$ticket_count</strong> Tickets");
-
-    if ($skipped_count > 0) {
-        flashAlert("Resolved <strong>$ticket_count</strong> Tickets <strong>$skipped_count</strong> ticket(s) could not be resolved because they have open tasks.", 'info');
-    }
-
-    redirect();
-
-}
+// Resolution actions are handled by onyst_resolution.php (silent by default).
 
 if (isset($_POST['bulk_ticket_reply'])) {
 
@@ -1956,7 +1809,7 @@ if (isset($_POST['add_ticket_reply'])) {
             if ($ticket_status == 4) {
                 // Resolved
                 $subject = "Ticket resolved - [$ticket_prefix$ticket_number] - $ticket_subject | (pending closure)";
-                $body = "<i style=\'color: #808080\'>##- Please type your reply above this line -##</i><br><br>Hello $contact_name,<br><br>Your ticket regarding $ticket_subject has been marked as solved and is pending closure.<br><br>--------------------------------<br>$ticket_reply<br>--------------------------------<br><br>If your request/issue is resolved, you can simply ignore this email. If you need further assistance, please reply or <a href=\'https://$config_base_url/guest/guest_view_ticket.php?ticket_id=$ticket_id&url_key=$url_key\'>re-open</a> to let us know! <br><br>Ticket: $ticket_prefix$ticket_number<br>Subject: $ticket_subject<br>Status: $ticket_status_name<br>Portal: <a href=\'https://$config_base_url/guest/guest_view_ticket.php?ticket_id=$ticket_id&url_key=$url_key\'>View ticket</a><br><br>--<br>$company_name - Support<br>$config_ticket_from_email<br>$company_phone";
+                $body = mysqli_real_escape_string($mysqli, onystRenderTicketMessage('Ticket Resolved', onystUnescapeMailSql($ticket_prefix . $ticket_number), onystUnescapeMailSql($ticket_subject), onystUnescapeMailSql($ticket_reply)));
             } else {
                 // Anything else
                 $subject = "Ticket update - [$ticket_prefix$ticket_number] - $ticket_subject";
@@ -1982,7 +1835,11 @@ if (isset($_POST['add_ticket_reply'])) {
 
             // Also Email all the watchers
             $sql_watchers = mysqli_query($mysqli, "SELECT watcher_email FROM ticket_watchers WHERE watcher_ticket_id = $ticket_id");
-            $body .= "<br><br>----------------------------------------<br>YOU ARE A COLLABORATOR ON THIS TICKET";
+            if ($ticket_status == 4) {
+                $body = mysqli_real_escape_string($mysqli, onystRenderTicketMessage('Ticket Resolved', onystUnescapeMailSql($ticket_prefix . $ticket_number), onystUnescapeMailSql($ticket_subject), onystUnescapeMailSql($ticket_reply), true));
+            } else {
+                $body .= "<br><br>----------------------------------------<br>YOU ARE A COLLABORATOR ON THIS TICKET";
+            }
             while ($row = mysqli_fetch_assoc($sql_watchers)) {
                 $watcher_email = escapeSql($row['watcher_email']);
 
@@ -2319,120 +2176,7 @@ if (isset($_POST['change_client_ticket'])) {
 
 }
 
-if (isset($_GET['resolve_ticket'])) {
-
-    validateCSRFToken();
-
-    enforceUserPermission('module_support', 2);
-
-    $ticket_id = intval($_GET['resolve_ticket']);
-
-    $sql = mysqli_query($mysqli, "SELECT ticket_client_id, ticket_first_response_at, ticket_number, ticket_prefix FROM tickets WHERE ticket_id = $ticket_id");
-    $row = mysqli_fetch_assoc($sql);
-    $ticket_prefix = escapeSql($row['ticket_prefix']);
-    $ticket_number = intval($row['ticket_number']);
-    $ticket_first_response_at = escapeSql($row['ticket_first_response_at']);
-    $client_id = intval($row['ticket_client_id']);
-
-    // Don't Enforce Client Access if Ticket doesn't have an assigned client
-    if ($client_id) {
-        enforceClientAccess();
-    }
-
-    // Mark FR
-    if (empty($ticket_first_response_at)) {
-        setTicketFirstResponse($ticket_id);
-    }
-
-    // Resolve
-    mysqli_query($mysqli, "UPDATE tickets SET ticket_status = 4, ticket_resolved_at = NOW() WHERE ticket_id = $ticket_id");
-    syncTicketSlaClock($ticket_id);
-    setTicketResolutionSlaMet($ticket_id);
-
-    logTicketHistory($ticket_id, "$session_name resolved the ticket");
-
-    logAudit("Ticket", "Resolved", "$session_name resolved ticket $ticket_prefix$ticket_number (ID: $ticket_id)", $client_id, $ticket_id);
-
-    triggerCustomAction('ticket_resolve', $ticket_id);
-
-    // Client notification email
-    if ((!empty($config_smtp_provider)) && $config_ticket_client_general_notifications == 1) {
-
-        // Get details
-        $ticket_sql = mysqli_query($mysqli, "SELECT contact_name, contact_email, ticket_prefix, ticket_number, ticket_subject, ticket_status_name, ticket_assigned_to, ticket_url_key FROM tickets
-            LEFT JOIN contacts ON ticket_contact_id = contact_id
-            LEFT JOIN ticket_statuses ON ticket_status = ticket_status_id
-            WHERE ticket_id = $ticket_id
-        ");
-        $row = mysqli_fetch_assoc($ticket_sql);
-
-        $contact_name = escapeSql($row['contact_name']);
-        $contact_email = escapeSql($row['contact_email']);
-        $ticket_prefix = escapeSql($row['ticket_prefix']);
-        $ticket_number = intval($row['ticket_number']);
-        $ticket_subject = escapeSql($row['ticket_subject']);
-        $ticket_assigned_to = intval($row['ticket_assigned_to']);
-        $ticket_status = escapeSql($row['ticket_status_name']);
-        $url_key = escapeSql($row['ticket_url_key']);
-
-        // Sanitize Config vars from get_settings.php
-        $config_ticket_from_name = escapeSql($config_ticket_from_name);
-        $config_ticket_from_email = escapeSql($config_ticket_from_email);
-        $config_base_url = escapeSql($config_base_url);
-
-        // Get Company Info
-        $sql = mysqli_query($mysqli, "SELECT company_name, company_phone, company_phone_country_code FROM companies WHERE company_id = 1");
-        $row = mysqli_fetch_assoc($sql);
-        $company_name = escapeSql($row['company_name']);
-        $company_phone = escapeSql(formatPhoneNumber($row['company_phone'], $row['company_phone_country_code']));
-
-        // EMAIL
-        $subject = "Ticket resolved - [$ticket_prefix$ticket_number] - $ticket_subject | (pending closure)";
-        $body = "<i style=\'color: #808080\'>##- Please type your reply above this line -##</i><br><br>Hello $contact_name,<br><br>Your ticket regarding $ticket_subject has been marked as solved and is pending closure.<br><br>If your request/issue is resolved, you can simply ignore this email. If you need further assistance, please reply or <a href=\'https://$config_base_url/guest/guest_view_ticket.php?ticket_id=$ticket_id&url_key=$url_key\'>re-open</a> to let us know! <br><br>Ticket: $ticket_prefix$ticket_number<br>Subject: $ticket_subject<br>Status: $ticket_status<br>Portal: <a href=\'https://$config_base_url/guest/guest_view_ticket.php?ticket_id=$ticket_id&url_key=$url_key\'>View ticket</a><br><br>--<br>$company_name - Support<br>$config_ticket_from_email<br>$company_phone";
-
-        // Check email valid
-        if (filter_var($contact_email, FILTER_VALIDATE_EMAIL)) {
-
-            $data = [];
-
-            // Email Ticket Contact
-            // Queue Mail
-
-            $data[] = [
-                'from' => $config_ticket_from_email,
-                'from_name' => $config_ticket_from_name,
-                'recipient' => $contact_email,
-                'recipient_name' => $contact_name,
-                'subject' => $subject,
-                'body' => $body
-            ];
-        }
-
-        // Also Email all the watchers
-        $sql_watchers = mysqli_query($mysqli, "SELECT watcher_email FROM ticket_watchers WHERE watcher_ticket_id = $ticket_id");
-        $body .= "<br><br>----------------------------------------<br>YOU ARE A COLLABORATOR ON THIS TICKET";
-        while ($row = mysqli_fetch_assoc($sql_watchers)) {
-            $watcher_email = escapeSql($row['watcher_email']);
-
-            // Queue Mail
-            $data[] = [
-                'from' => $config_ticket_from_email,
-                'from_name' => $config_ticket_from_name,
-                'recipient' => $watcher_email,
-                'recipient_name' => $watcher_email,
-                'subject' => $subject,
-                'body' => $body
-            ];
-        }
-        addToMailQueue($data);
-    }
-    //End Mail IF
-
-    flashAlert("Ticket resolved");
-
-    redirect();
-
-}
+// Resolution actions are handled by onyst_resolution.php (silent by default).
 
 if (isset($_GET['close_ticket'])) {
 

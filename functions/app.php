@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/onyst_ticket_email.php';
+require_once __DIR__ . '/onyst_ticket_resolution.php';
 
 // App/UI helpers - icons, badges, lookups, mail queue, iCal, taxes, update check
 // Split from the former monolithic functions.php
@@ -688,6 +689,7 @@ function getQuarterlyTax($tax_name, $quarter, $year, $mysqli) {
 function addToMailQueue($data) {
 
     global $mysqli;
+    $onyst_all_queued = true;
 
     foreach ($data as $email) {
         $from = strval($email['from']);
@@ -696,11 +698,17 @@ function addToMailQueue($data) {
         $recipient_name = strval($email['recipient_name']);
         $subject = strval($email['subject']);
         $body = strval($email['body']);
-        // Existing queue values are SQL-escaped; format raw HTML and re-escape once.
-        if (strpos($body, '##- Please type your reply above this line -##') !== false) {
-            $raw_subject = onystTicketEmailSubject(onystUnescapeMailSql($subject));
-            $body = mysqli_real_escape_string($mysqli, onystFormatTicketEmail(onystUnescapeMailSql($body), $raw_subject));
-            $subject = mysqli_real_escape_string($mysqli, $raw_subject);
+        // Queue callers pass SQL-escaped values. Inspect raw HTML, then escape once.
+        $onyst_subject = onystTicketEmailSubject(onystUnescapeMailSql($subject));
+        if (strpos($body, '##- Please type your reply above this line -##') !== false || onystTicketEmailDetails($onyst_subject)) {
+            $onyst_body = onystFormatTicketEmail(onystUnescapeMailSql($body), $onyst_subject);
+            if ($onyst_body === null) {
+                $onyst_all_queued = false;
+                logApp('Ticket Email', 'Warning', 'Blocked obsolete default resolution email; an explicit closing response is required.');
+                continue;
+            }
+            $body = mysqli_real_escape_string($mysqli, $onyst_body);
+            $subject = mysqli_real_escape_string($mysqli, $onyst_subject);
         }
 
         $cal_str = '';
@@ -739,7 +747,7 @@ function addToMailQueue($data) {
         mysqli_query($mysqli, "INSERT INTO email_queue SET email_recipient = '$recipient', email_recipient_name = '$recipient_name', email_from = '$from', email_from_name = '$from_name', email_subject = '$subject', email_content = '$body', email_queued_at = $queued_at, email_cal_str = '$cal_str', email_attachments = '$attachments'");
     }
 
-    return true;
+    return $onyst_all_queued;
 }
 
 function getTicketCalendarUid($ticket_id) {

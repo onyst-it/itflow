@@ -498,16 +498,7 @@ if (isset($_GET['ticket_id'])) {
                                     <?php } ?>
 
                                     <?php if (!$ticket_is_resolved) { ?>
-                                        <a href="post.php?resolve_ticket=<?= $ticket_id ?>&csrf_token=<?= $_SESSION['csrf_token'] ?>"
-                                            class="btn btn-dark confirm-link <?php if ($tasks_block_resolve) { echo "disabled"; } ?>"
-                                            id="ticket_close"
-                                            <?php if ($tasks_block_resolve) { ?>
-                                                title="<?= $task_count - $completed_task_count ?> task<?= ($task_count - $completed_task_count) == 1 ? '' : 's' ?> still open"
-                                                onclick="return false;"
-                                            <?php } ?>
-                                        >
-                                            <i class="fas fa-fw fa-check me-2"></i>Resolve
-                                        </a>
+                                        <?php require __DIR__ . "/includes/onyst_resolve_button.php"; ?>
                                     <?php } else { ?>
                                         <a href="post.php?close_ticket=<?= $ticket_id ?>&csrf_token=<?= $_SESSION['csrf_token'] ?>" class="btn btn-dark confirm-link" id="ticket_close">
                                             <i class="fas fa-fw fa-gavel me-2"></i>Close

@@ -10,7 +10,7 @@ function onystCheck($condition, $name): void {
 $marker = "<i style='color: #808080'>##- Please type your reply above this line -##</i>";
 $message = '<p>Example <strong>rich text</strong> reply.</p>';
 $body = $marker . '<br><br>Hello,<br><br>--------------------------------<br>' . $message . '<br>--------------------------------<br><br>Ticket: ONY-30000<br><br>--<br>ONYST';
-foreach (['update'=>'Ticket Updated','Updated'=>'Ticket Updated','resolved'=>'Ticket Resolved','Resolved'=>'Ticket Resolved'] as $event=>$label) {
+foreach (['update'=>'Ticket Updated','Updated'=>'Ticket Updated'] as $event=>$label) {
     $subject = 'Ticket ' . $event . ' - [ONY-30000] - Example';
     onystCheck(onystTicketEmailSubject($subject) === $label . ' - [ONY-30000] - Example', 'Subject label: '.$event);
     $html = onystFormatTicketEmail($body,onystTicketEmailSubject($subject));
@@ -23,8 +23,7 @@ foreach (['update'=>'Ticket Updated','Updated'=>'Ticket Updated','resolved'=>'Ti
 }
 $standalone = $marker . '<br><br>Your ticket is resolved.<br><br>Please reply or <a href="https://example.invalid/reopen">re-open</a> for assistance.<br><br>--<br>ONYST';
 $resolved = onystFormatTicketEmail($standalone,'Ticket resolved - [ONY-30000] - Example | (pending closure)');
-onystCheck(strpos($resolved,'<strong>Ticket Resolved</strong>') !== false, 'Standalone Resolve heading');
-onystCheck(strpos($resolved,'>re-open</a>') !== false, 'Standalone reopen link retained');
+onystCheck($resolved === null, 'Legacy standalone resolved default blocked');
 $watcher = onystFormatTicketEmail($body.'<br><br>----------------------------------------<br>YOU ARE A COLLABORATOR ON THIS TICKET','Ticket update - [ONY-30000] - Example');
 onystCheck(substr_count($watcher,'YOU ARE A COLLABORATOR ON THIS TICKET') === 1, 'Collaborator notice retained once');
 foreach ([$marker,'<span>----- REPLY ABOVE THIS LINE TO SEND A RESPONSE -----</span>','----- REPLY ABOVE THIS LINE TO SEND A RESPONSE -----','##- Please type your reply above this line -##'] as $separator) {

@@ -126,9 +126,7 @@ if ($tickets) {
                             <a class="dropdown-item ajax-modal" href="#" data-modal-url="modals/ticket/ticket_bulk_merge.php" data-bulk="true">
                                 <i class="fas fa-fw fa-clone me-2"></i>Merge
                             </a>
-                            <a class="dropdown-item ajax-modal" href="#" data-modal-url="modals/ticket/ticket_bulk_resolve.php" data-modal-size="lg" data-bulk="true">
-                                <i class="fas fa-fw fa-check me-2"></i>Resolve
-                            </a>
+                            <?php require __DIR__ . "/includes/onyst_bulk_resolution_menu.php"; ?>
                             <?php if (lookupUserPermission("module_support") === 3) { ?>
                                 <div class="dropdown-divider"></div>
                                 <button class="dropdown-item text-danger text-bold confirm-link" type="submit" form="bulkActions" name="bulk_delete_tickets">

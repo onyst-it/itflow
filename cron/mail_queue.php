@@ -198,6 +198,11 @@ function sendQueueEmail(
     string $oauth_access_token,
     string $oauth_access_token_expires_at
 ) {
+    // Guard old queued/retried defaults at the final delivery boundary, before SMTP.
+    if (!onystResolutionDeliveryAllowed($subject, $html_body)) {
+        throw new Exception('Blocked obsolete default resolution email; an explicit closing response is required.');
+    }
+
     // Google and Microsoft each expose exactly one XOAUTH2 SMTP endpoint, so the
     // stored host/port/encryption are overridden rather than used as a fallback -
     // the same thing cron/ticket_email_parser.php already does on the IMAP side.

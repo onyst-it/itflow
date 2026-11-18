@@ -326,12 +326,7 @@ if (isset($_GET['project_id'])) {
                                             <i class="fas fa-fw fa-clone me-2"></i>Merge
                                         </a>
                                         <div class="dropdown-divider"></div>
-                                        <a class="dropdown-item ajax-modal" href="#"
-                                            data-modal-url="modals/ticket/ticket_bulk_resolve.php"
-                                            data-modal-size="lg"
-                                            data-bulk="true">
-                                            <i class="fas fa-fw fa-check me-2"></i>Resolve
-                                        </a>
+                                        <?php require __DIR__ . "/includes/onyst_bulk_resolution_menu.php"; ?>
                                 </div>
                             </div>
                         <?php } ?>

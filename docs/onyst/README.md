@@ -10,7 +10,17 @@ The maintained application is https://github.com/onyst-it/itflow, production bra
 - Three selectable saved responses: standard resolution, no response, and completed job notes. Definitions are in `resources/onyst/canned-responses.json`.
 - The migration-only Syncro contact endpoint, its validation contract and tests, and the schema for the source-to-destination mapping table. Existing ITFlow authentication and RBAC remain in use.
 
-The silent Resolve split-button and bulk menu changes were stopped before implementation. They are not part of this release. The current standalone Resolve action still uses ITFlow's resolution notification flow.
+## Resolution actions
+
+The ticket button defaults to **Silently Resolve**. Its side arrow offers **Resolve — Standard** and **Resolve — No Response**. The ticket list and project bulk menus expose all three actions directly. Job Completion remains available in the normal saved-response composer and is not a resolution-menu option.
+
+Silent actions change the ticket to Resolved and retain SLA/history tracking, without sending an email or adding a public reply. The two explicit email actions resolve the ticket, add the selected saved response as a public reply, and queue that response for the contact and watchers. Duplicate recipients and repeat clicks do not produce duplicate emails. Open tasks prevent resolution. A missing, duplicate, archived, empty, or incompatible saved response stops the action; it never substitutes ITFlow's built-in message. Tickets without valid recipients remain unresolved for an email action.
+
+The response names `Resolved - Standard` and `Resolved - No Response` identify the two saved responses, independent of installation-specific database IDs. Their bodies remain editable in Canned Responses. Keep these names unique. The email wrapper and measured spacing remain unchanged.
+
+Legacy Resolve links and modal submissions default to silent. Kanban resolution is also silent. A public reply submitted with Resolved status sends the authored reply only. The obsolete built-in resolution prose is removed, rejected by the queue, and blocked again before SMTP delivery, including older queued retries.
+
+The optional CLI integration check `php tests/onyst_ticket_resolution_test.php --database` uses only ticket 1 named `ITFlow Ticket Test`, requires InnoDB, and rolls every test transaction back. It never sends SMTP, invokes custom hooks, or commits ticket/queue changes. It is deliberately excluded from automatic deployments.
 
 ## Deployment
 
