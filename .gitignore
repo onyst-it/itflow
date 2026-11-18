@@ -55,3 +55,6 @@ api/v1/custom/*
 .zed
 
 *.patch
+
+# Live ONYST migration scope is server-only; commit the disabled example instead.
+/api/v1/contacts/onyst-migration-config.php

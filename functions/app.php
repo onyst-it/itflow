@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/onyst_ticket_email.php';
 
 // App/UI helpers - icons, badges, lookups, mail queue, iCal, taxes, update check
 // Split from the former monolithic functions.php
@@ -695,6 +696,12 @@ function addToMailQueue($data) {
         $recipient_name = strval($email['recipient_name']);
         $subject = strval($email['subject']);
         $body = strval($email['body']);
+        // Existing queue values are SQL-escaped; format raw HTML and re-escape once.
+        if (strpos($body, '##- Please type your reply above this line -##') !== false) {
+            $raw_subject = onystTicketEmailSubject(onystUnescapeMailSql($subject));
+            $body = mysqli_real_escape_string($mysqli, onystFormatTicketEmail(onystUnescapeMailSql($body), $raw_subject));
+            $subject = mysqli_real_escape_string($mysqli, $raw_subject);
+        }
 
         $cal_str = '';
         if (isset($email['cal_str'])) {

@@ -208,6 +208,8 @@ function addReply($from_email, $date, $subject, $ticket_number, $message, $attac
     global $mysqli, $config_app_name, $company_name, $company_phone, $config_ticket_prefix, $config_base_url, $config_ticket_from_name, $config_ticket_from_email, $allowed_extensions;
 
     $ticket_reply_type = 'Client';
+    // Accept both the ONYST/Syncro separator and older ITFlow email replies.
+    $message = onystStripQuotedTicketEmail($message);
     // $message contains the raw HTML body from IMAP
 
     // 1) Remove the reply separator and everything below it (HTML-aware)

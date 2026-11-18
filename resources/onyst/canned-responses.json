@@ -1,0 +1,17 @@
+[
+  {
+    "name": "Complete - Job Notes",
+    "body": "<p>This job is now marked as complete.</p>\r\n<p><strong>Job Notes:</strong><br>_________________________</p>\r\n<p>Thank you!</p>",
+    "category_id": "0"
+  },
+  {
+    "name": "Resolved - No Response",
+    "body": "<p>We haven't heard back from you, so this ticket is now marked as resolved.</p>\r\n<p>If you feel this was a mistake on our end, or you require additional assistance with this issue, simply reply to this email. If you have a new or different issue, please send a separate email to <a href=\"mailto:help@onyst.it\">help@onyst.it</a> to start a new ticket.</p>\r\n<p>Thank you!</p>",
+    "category_id": "0"
+  },
+  {
+    "name": "Resolved - Standard",
+    "body": "<p>This ticket is now marked as resolved.</p>\r\n<p>If you feel this was a mistake on our end, or you require additional assistance with this issue, simply reply to this email. If you have a new or different issue, please send a separate email to <a href=\"mailto:help@onyst.it\">help@onyst.it</a> to start a new ticket.</p>\r\n<p>Thank you!</p>",
+    "category_id": "0"
+  }
+]
