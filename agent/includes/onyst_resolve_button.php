@@ -7,7 +7,7 @@
     </form>
     <button type="button" class="btn btn-dark dropdown-toggle dropdown-toggle-split rounded-start-0" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Choose resolution response" <?= $tasks_block_resolve ? 'disabled' : '' ?>><span class="visually-hidden">Choose resolution response</span></button>
     <div class="dropdown-menu dropdown-menu-end">
-        <?php foreach (['standard'=>'Resolve — Standard','no_response'=>'Resolve — No Response'] as $mode=>$label) { ?>
+        <?php foreach (['standard'=>'Resolve - Send Standard Resolution Note','no_response'=>'Resolve - Send Inactivity Explanation'] as $mode=>$label) { ?>
             <form action="post.php" method="post">
                 <input type="hidden" name="csrf_token" value="<?= escapeHtml($_SESSION['csrf_token']) ?>">
                 <input type="hidden" name="resolution_mode" value="<?= $mode ?>">

@@ -12,7 +12,7 @@ The maintained application is https://github.com/onyst-it/itflow, production bra
 
 ## Resolution actions
 
-The ticket button defaults to **Silently Resolve**. Its side arrow offers **Resolve — Standard** and **Resolve — No Response**. The ticket list and project bulk menus expose all three actions directly. Job Completion remains available in the normal saved-response composer and is not a resolution-menu option.
+The ticket button defaults to **Silently Resolve**. Its side arrow offers **Resolve - Send Standard Resolution Note** and **Resolve - Send Inactivity Explanation**. The ticket list and project bulk menus expose all three actions directly. Job Completion remains available in the normal saved-response composer and is not a resolution-menu option.
 
 Silent actions change the ticket to Resolved and retain SLA/history tracking, without sending an email or adding a public reply. The two explicit email actions resolve the ticket, add the selected saved response as a public reply, and queue that response for the contact and watchers. Duplicate recipients and repeat clicks do not produce duplicate emails. Open tasks prevent resolution. A missing, duplicate, archived, empty, or incompatible saved response stops the action; it never substitutes ITFlow's built-in message. Tickets without valid recipients remain unresolved for an email action.
 

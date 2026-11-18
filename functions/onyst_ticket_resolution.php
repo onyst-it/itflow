@@ -1,7 +1,7 @@
 <?php
 // ONYST_RESOLUTION_V3: invoked only by authenticated, CSRF-checked agent actions.
 function onystResolutionModes(): array {
-    return ['silent' => 'Silently Resolve', 'standard' => 'Resolve — Standard', 'no_response' => 'Resolve — No Response'];
+    return ['silent' => 'Silently Resolve', 'standard' => 'Resolve - Send Standard Resolution Note', 'no_response' => 'Resolve - Send Inactivity Explanation'];
 }
 function onystResolutionResponse(string $mode): ?array {
     global $mysqli;
