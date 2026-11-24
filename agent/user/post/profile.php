@@ -166,7 +166,12 @@ if (isset($_POST['edit_your_user_preferences'])) {
     validateCSRFToken();
 
     $calendar_first_day = intval($_POST['calendar_first_day']);
-    $dark_mode = intval($_POST['dark_mode'] ?? 0);
+    // 0 follows the installed theme, 1 is dark, and 2 is an explicit light preference.
+    $dark_mode = match ($_POST['dark_mode'] ?? '0') {
+        '1' => 1,
+        '2', 'on' => 2,
+        default => 0,
+    };
 
     // Calendar
     if (isset($calendar_first_day)) {

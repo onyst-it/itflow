@@ -139,7 +139,7 @@ if ($tickets) {
             <?php } ?>
 
             <div class="table-responsive">
-                <table class="table table-striped table-borderless table-hover mb-0">
+                <table class="table table-striped table-borderless table-hover mb-0 ticket-list-table">
                     <thead class="text-dark text-nowrap <?php if (!$num_rows[0]) { echo "d-none"; } ?>">
                     <tr>
                         <td class="checkbox-column border-end">
@@ -396,7 +396,7 @@ if ($tickets) {
 
                             <!-- Ticket Status -->
                             <td>
-                                <span class="badge rounded-pill text-light p-2" style="background-color: <?= $ticket_status_color ?>"><?= $ticket_status_name ?></span>
+                                <span class="badge rounded-pill text-light p-2 ticket-status-badge" style="border-color: <?= $ticket_status_color ?>; background-color: <?= $ticket_status_color ?>"><?= $ticket_status_name ?></span>
                                 <?php if (!empty($ticket_scheduled_for)) { ?>
                                     <div class="mt-1"><small class="text-secondary"><i class="fas fa-fw fa-calendar-check me-1"></i><?= $ticket_scheduled_for ?></small></div>
                                 <?php } ?>

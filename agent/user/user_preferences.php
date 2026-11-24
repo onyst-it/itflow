@@ -19,7 +19,9 @@ $user_config_calendar_first_day = intval($row['user_config_calendar_first_day'])
                 <h5>Dark Mode</h5>
 
                 <div class="btn-group" role="group">
-                    <input class="btn-check" type="radio" name="dark_mode" id="light-mode" autocomplete="off" <?php if ($user_config_theme_dark === 0) { echo "checked"; } ?>>
+                    <input class="btn-check" type="radio" name="dark_mode" id="default-mode" autocomplete="off" value="0" <?= $user_config_theme_dark === 0 ? 'checked' : '' ?>>
+                    <label class="btn btn-outline-dark" for="default-mode">Theme default</label>
+                    <input class="btn-check" type="radio" name="dark_mode" id="light-mode" autocomplete="off" value="2" <?= $user_config_theme_dark === 2 ? 'checked' : '' ?>>
                     <label class="btn btn-outline-primary" for="light-mode"><i class="fas fa-sun me-2"></i>Light</label>
                     <input class="btn-check" type="radio" name="dark_mode" id="dark-mode" autocomplete="off" value="1" <?php if ($user_config_theme_dark === 1) { echo "checked"; } ?>>
                     <label class="btn btn-outline-dark" for="dark-mode"><i class="fas fa-moon me-2"></i>Dark</label>

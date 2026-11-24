@@ -1,9 +1,10 @@
 <?php
 require_once "includes/inc_all_admin.php";
 
-// Keep in step with the .theme-<name> blocks in css/itflow_custom.css - a name
+// Keep in step with the .theme-<name> blocks in the theme stylesheets - a name
 // listed here with no matching block renders as an uncoloured, dead choice.
 $theme_colors_array = array(
+    'onyst-dark',
     'lightblue',
     'blue',
     'navy',
@@ -33,7 +34,7 @@ $theme_colors_array = array(
         <form action="post.php" method="post" autocomplete="off">
             <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
 
-            <p class="text-muted">Sets the colour of the top bar, links, buttons and highlights.</p>
+            <p class="text-muted">Sets the colour of the top bar, links, buttons and highlights. ONYST Dark also makes dark mode the default for staff.</p>
 
             <div class="row row-cols-3 row-cols-sm-4 row-cols-lg-6 g-3">
 
@@ -73,7 +74,7 @@ $theme_colors_array = array(
                                     </span>
                                 </span>
                             </span>
-                            <span class="itflow-theme-name"><?= escapeHtml($theme_color) ?></span>
+                            <span class="itflow-theme-name"><?= $theme_color === 'onyst-dark' ? 'ONYST Dark' : escapeHtml($theme_color) ?></span>
                         </label>
                     </div>
 

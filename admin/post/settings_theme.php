@@ -12,7 +12,8 @@ if (isset($_POST['edit_theme_settings'])) {
 
     logAudit("Settings", "Edit", "$session_name edited theme settings to $theme");
 
-    flashAlert("Changed theme to <strong>$theme</strong>");
+    $theme_label = $theme === 'onyst-dark' ? 'ONYST Dark' : $theme;
+    flashAlert("Changed theme to <strong>$theme_label</strong>");
 
     redirect();
 

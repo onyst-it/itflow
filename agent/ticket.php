@@ -551,7 +551,7 @@ if (isset($_GET['ticket_id'])) {
                     <div class="ticket-field">
                         <div class="ticket-field-label">Status</div>
                         <div class="ticket-field-value">
-                            <span class="badge rounded-pill p-2 text-light" style="background-color: <?= $ticket_status_color ?>"><?= $ticket_status_name ?></span>
+                            <span class="badge rounded-pill p-2 text-light ticket-status-badge" style="border-color: <?= $ticket_status_color ?>; background-color: <?= $ticket_status_color ?>"><?= $ticket_status_name ?></span>
                         </div>
                     </div>
 
@@ -674,7 +674,7 @@ if (isset($_GET['ticket_id'])) {
                     </div>
 
                     <div class="card-body p-3 prettyContent" id="ticketDetails">
-                        <?= $ticket_details ?>
+                        <div class="ticket-message"><?= $ticket_details ?></div>
 
                         <?php if ($ticket_attachments) { ?>
                             <div class="mt-3 pt-2 border-top">
@@ -952,7 +952,7 @@ if (isset($_GET['ticket_id'])) {
                         </div>
 
                         <div class="card-body p-3 prettyContent">
-                            <?= $ticket_reply ?>
+                            <div class="ticket-message"><?= $ticket_reply ?></div>
 
                             <?php if (isset($reply_attachments[$ticket_reply_id])) { ?>
                                 <div class="mt-3 pt-2 border-top">

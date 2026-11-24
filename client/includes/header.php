@@ -39,6 +39,7 @@ header("X-Frame-Options: DENY"); // Legacy
          last so it wins, and must load HERE too - it used to be on the agent header only,
          which left this portal without .text-bold, the bg-dark text pairing or any theme. -->
     <link rel="stylesheet" href="/css/itflow_custom.css">
+    <?php if ($config_theme === 'onyst-dark') { ?><link rel="stylesheet" href="/css/onyst_theme.css"><?php } ?>
 
     <?php /* Only the pages that set this flag before including inc_all.php pull
              in intl-tel-input - it is ~200KB of JS and flag sprites, and one

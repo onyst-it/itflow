@@ -17,7 +17,11 @@
 
     <div class="sidebar-brand">
         <a class="brand-link" href="<?= $brand_link ?>">
-            <span class="brand-text h4 mb-0"><?= escapeHtml($session_company_name) ?></span>
+            <?php if (strcasecmp($session_company_name, 'ONYST') === 0) { ?>
+                <img class="brand-text onyst-sidebar-logo" src="/img/onyst-wordmark.svg" width="150" height="29" alt="<?= escapeHtml($session_company_name) ?>">
+            <?php } else { ?>
+                <span class="brand-text h4 mb-0"><?= escapeHtml($session_company_name) ?></span>
+            <?php } ?>
         </a>
     </div>
 
