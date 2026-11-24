@@ -91,7 +91,7 @@ require_once "includes/inc_all_admin.php";
                             <tr>
                                 <th>
                                     <div><i class="fas fa-fw fa-bell me-2"></i>Send clients general notification emails</div>
-                                    <small class="text-secondary">(Should clients receive automatic emails when tickets are raised/closed?)</small>
+                                    <small class="text-secondary">General ticket notifications, including closure. Set delayed email acknowledgments in each client or vendor’s settings.</small>
                                 </th>
                                 <td></td>
                                 <td></td>

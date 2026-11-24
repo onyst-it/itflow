@@ -8,6 +8,10 @@ for file in functions/onyst_vendor_contacts.php functions/ticket_email_ingest.ph
     php -l "$file"
 done
 php tests/onyst_vendor_contacts_test.php
+for file in admin/database_updates/2.8.0.php agent/modals/client/client_edit.php agent/modals/vendor/vendor_edit.php agent/post/client.php agent/post/vendor.php client/ticket.php cron/ticket_auto_reply.php functions/onyst_ticket_auto_reply.php guest/guest_view_ticket.php includes/cron_jobs.php tests/onyst_ticket_auto_reply_test.php; do
+    php -l "$file"
+done
+php tests/onyst_ticket_auto_reply_test.php
 php tests/onyst_ticket_email_test.php
 php tests/onyst_ticket_resolution_test.php
 php api/v1/contacts/onyst-migration-contract-test.php

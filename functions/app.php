@@ -700,6 +700,9 @@ function addToMailQueue($data) {
         $body = strval($email['body']);
         // Queue callers pass SQL-escaped values. Inspect raw HTML, then escape once.
         $onyst_subject = onystTicketEmailSubject(onystUnescapeMailSql($subject));
+        if (onystIsDefaultTicketCreatedEmail($onyst_subject)) {
+            continue;
+        }
         if (strpos($body, '##- Please type your reply above this line -##') !== false || onystTicketEmailDetails($onyst_subject)) {
             $onyst_body = onystFormatTicketEmail(onystUnescapeMailSql($body), $onyst_subject);
             if ($onyst_body === null) {

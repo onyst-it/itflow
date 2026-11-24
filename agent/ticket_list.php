@@ -58,6 +58,7 @@ if ($tickets) {
             FROM ticket_replies
             WHERE ticket_reply_ticket_id IN ($page_ticket_ids)
             AND ticket_reply_archived_at IS NULL
+            AND ticket_reply_auto_ack = 0
             GROUP BY ticket_reply_ticket_id
         ) AS replies
         JOIN ticket_replies AS latest ON latest.ticket_reply_id = replies.latest_id

@@ -10,7 +10,7 @@ enforceClientAccess();
 
 $sql = mysqli_query($mysqli, "SELECT client_abbreviation, client_archived_at, client_created_at, client_lead, client_name,
     client_net_terms, client_notes, client_rate, client_referral, client_tax_id_number,
-    client_type, client_website FROM clients WHERE client_id = $client_id LIMIT 1");
+    client_type, client_website, client_ticket_auto_reply FROM clients WHERE client_id = $client_id LIMIT 1");
 
 $row = mysqli_fetch_assoc($sql);
 $client_name = escapeHtml($row['client_name']);
@@ -25,6 +25,7 @@ $client_rate = floatval($row['client_rate']);
 $client_notes = escapeHtml($row['client_notes']);
 $client_created_at = escapeHtml($row['client_created_at']);
 $client_archived_at = escapeHtml($row['client_archived_at']);
+$client_auto_reply = (int) $row['client_ticket_auto_reply'];
 
 // Client SLA assignments
 $client_sla_assignments = [];
@@ -84,6 +85,13 @@ ob_start();
         <div class="tab-content">
 
             <div class="tab-pane fade show active" id="pills-client-details<?= $client_id ?>">
+
+                <div class="form-check form-switch mb-3">
+                    <input type="hidden" name="ticket_auto_reply" value="0">
+                    <input class="form-check-input" type="checkbox" name="ticket_auto_reply" value="1" id="clientTicketAutoReply<?= $client_id ?>" <?= $client_auto_reply ? 'checked' : '' ?>>
+                    <label class="form-check-label" for="clientTicketAutoReply<?= $client_id ?>">Automatic ticket replies</label>
+                    <div class="form-text">Acknowledge new email tickets after 60 minutes when they still need an initial response.</div>
+                </div>
 
                 <div class="mb-3">
                     <label>Name <strong class="text-danger">*</strong> / <span class="text-secondary">Is Lead</span></label>

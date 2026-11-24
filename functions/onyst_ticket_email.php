@@ -14,6 +14,9 @@ function onystTicketEmailSubject($subject) {
     $details=onystTicketEmailDetails($subject);
     return $details ? preg_replace('/^Ticket (?:update|updated|resolved)(?= - \[)/i',$details['label'],$subject,1) : $subject;
 }
+function onystIsDefaultTicketCreatedEmail(string $subject): bool {
+    return preg_match('/^Ticket created(?: -)? \[[^\]]+\] - /i', $subject) === 1;
+}
 function onystCleanTicketEmailBody($body) {
     $body=preg_replace('/<i\b[^>]*>##-\s*Please\s+type\s+your\s+reply\s+above\s+this\s+line\s*-##<\/i>(?:<br>){0,2}/i','',$body,1);
     return preg_replace('/<br><br>--<br>.*?(?=<br><br>----------------------------------------<br>YOU ARE A COLLABORATOR|$)/s','',$body);

@@ -1,7 +1,9 @@
 <?php
+require_once __DIR__ . '/onyst_ticket_auto_reply.php';
+
 /** Native inbound ticket/reply operations; loaded by the parser and isolated tests. */
-function addTicket($contact_id, $contact_name, $contact_email, $client_id, $date, $subject, $message, $attachments, $original_message_file, $ccs, $vendor_id = 0) {
-    global $mysqli, $config_app_name, $company_name, $company_phone, $config_ticket_prefix, $config_ticket_client_general_notifications, $config_ticket_new_ticket_notification_email, $config_base_url, $config_ticket_from_name, $config_ticket_from_email, $config_ticket_default_billable, $allowed_extensions;
+function addTicket($contact_id, $contact_name, $contact_email, $client_id, $date, $subject, $message, $attachments, $original_message_file, $ccs, $vendor_id = 0, bool $allow_auto_reply = true) {
+    global $mysqli, $config_app_name, $config_ticket_prefix, $config_ticket_new_ticket_notification_email, $config_base_url, $config_ticket_from_name, $config_ticket_from_email, $config_ticket_default_billable, $allowed_extensions;
     $bad_pattern = "/do[\W_]*not[\W_]*reply|no[\W_]*reply/i"; // Email addresses to ignore
 
     // Atomically increment and get the new ticket number
@@ -88,22 +90,7 @@ function addTicket($contact_id, $contact_name, $contact_email, $client_id, $date
         }
     }
 
-    // External email
     $data = [];
-    if ($config_ticket_client_general_notifications == 1 && !preg_match($bad_pattern, $contact_email)) {
-        $subject_email = "Ticket created - [$config_ticket_prefix$ticket_number] - $subject";
-        // SLA response commitment for this client + priority, empty when no SLA applies
-        $sla_notice = getTicketSlaEmailNotice($id, $company_phone);
-        $body = "<i style='color: #808080'>##- Please type your reply above this line -##</i><br><br>Hello $contact_name,<br><br>Thank you for your email. A ticket regarding \"$subject\" has been automatically created for you.<br><br>Ticket: $config_ticket_prefix$ticket_number<br>Subject: $subject<br>Status: New<br>Portal: <a href='https://$config_base_url/guest/guest_view_ticket.php?ticket_id=$id&url_key=$url_key'>View ticket</a>$sla_notice<br><br>--<br>$company_name - Support<br>$config_ticket_from_email<br>$company_phone";
-        $data[] = [
-            'from' => $config_ticket_from_email,
-            'from_name' => $config_ticket_from_name,
-            'recipient' => $contact_email,
-            'recipient_name' => $contact_name,
-            'subject' => $subject_email,
-            'body' => mysqli_real_escape_string($mysqli, $body)
-        ];
-    }
 
     // Internal email
     if ($config_ticket_new_ticket_notification_email) {
@@ -130,6 +117,10 @@ function addTicket($contact_id, $contact_name, $contact_email, $client_id, $date
     }
 
     addToMailQueue($data);
+    if ($allow_auto_reply && $contact_id && ($client_id || $vendor_id)
+        && onystCanAutoReplyTo(trim($contact_email), (string) $config_ticket_from_email)) {
+        onystScheduleTicketAutoReply($id, trim($contact_email));
+    }
     triggerCustomAction('ticket_create', $id);
 
     return true;

@@ -60,6 +60,14 @@ function cronJobRegistry(): array
             'interval_minutes' => 1,
         ],
         [
+            'name' => 'ticket_auto_reply',
+            'label' => 'Ticket Auto-Replies',
+            'script' => 'ticket_auto_reply.php',
+            'description' => 'Acknowledges untouched inbound tickets after 60 minutes, subject to client and vendor preferences.',
+            'schedule' => 'Interval',
+            'interval_minutes' => 1,
+        ],
+        [
             'name' => 'ticket_sla',
             'label' => 'Ticket SLA Monitor',
             'script' => 'ticket_sla.php',

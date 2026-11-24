@@ -265,7 +265,7 @@ if (isset($_GET['ticket_id'])) {
 
         // Get ticket replies
         $sql_ticket_replies = mysqli_query($mysqli, "SELECT contact_name, contact_photo, ticket_reply, ticket_reply_created_at, ticket_reply_id,
-            ticket_reply_time_worked, ticket_reply_type, ticket_reply_updated_at, user_avatar, user_id,
+            ticket_reply_time_worked, ticket_reply_type, ticket_reply_auto_ack, ticket_reply_updated_at, user_avatar, user_id,
             user_name FROM ticket_replies
             LEFT JOIN users ON ticket_reply_by = user_id
             LEFT JOIN contacts ON ticket_reply_by = contact_id
@@ -862,12 +862,17 @@ if (isset($_GET['ticket_id'])) {
                     $ticket_reply_id = intval($reply_row['ticket_reply_id']);
                     $ticket_reply = $purifier->purify($reply_row['ticket_reply']);
                     $ticket_reply_type = escapeHtml($reply_row['ticket_reply_type']);
+                    $ticket_reply_auto_ack = (bool) $reply_row['ticket_reply_auto_ack'];
                     $ticket_reply_created_at = escapeHtml($reply_row['ticket_reply_created_at']);
                     $ticket_reply_created_at_ago = timeAgo($reply_row['ticket_reply_created_at']);
                     $ticket_reply_updated_at = escapeHtml($reply_row['ticket_reply_updated_at']);
                     $ticket_reply_time_worked = '';
 
-                    if ($ticket_reply_type == "Client") {
+                    if ($ticket_reply_auto_ack) {
+                        $ticket_reply_by_display = 'ONYST';
+                        $user_initials = 'O';
+                        $user_avatar = '';
+                    } elseif ($ticket_reply_type == "Client") {
                         $ticket_reply_by_display = escapeHtml($reply_row['contact_name']);
                         $user_initials = initials($reply_row['contact_name']);
                         $user_avatar = escapeHtml($reply_row['contact_photo']);
@@ -893,7 +898,8 @@ if (isset($_GET['ticket_id'])) {
                         $reply_group = 'public';
                     } else {
                         $reply_border = 'info';
-                        $reply_badge = "<span class='badge bg-info text-dark'><i class='fas fa-fw fa-comment me-1'></i>Public reply</span>";
+                        $reply_label = $ticket_reply_auto_ack ? 'Automatic acknowledgment' : 'Public reply';
+                        $reply_badge = "<span class='badge bg-info text-dark'><i class='fas fa-fw fa-comment me-1'></i>$reply_label</span>";
                         $reply_group = 'public';
                     }
 

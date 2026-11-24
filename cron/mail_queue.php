@@ -198,6 +198,10 @@ function sendQueueEmail(
     string $oauth_access_token,
     string $oauth_access_token_expires_at
 ) {
+    if (onystIsDefaultTicketCreatedEmail($subject)) {
+        throw new Exception('Automatic Ticket Created emails are disabled.');
+    }
+
     // Guard old queued/retried defaults at the final delivery boundary, before SMTP.
     if (!onystResolutionDeliveryAllowed($subject, $html_body)) {
         throw new Exception('Blocked obsolete default resolution email; an explicit closing response is required.');
@@ -278,6 +282,9 @@ function sendQueueEmail(
     $mail->isHTML(true);
     $mail->Subject = $subject;
     $mail->Body = $html_body;
+    if (str_contains($html_body, 'data-onyst-ticket-email="1" data-onyst-auto-reply="1"')) {
+        $mail->addCustomHeader('Auto-Submitted', 'auto-replied');
+    }
 
     if (!empty($ics_str)) {
         $mail->addStringAttachment($ics_str, 'Scheduled_ticket.ics', 'base64', 'text/calendar');

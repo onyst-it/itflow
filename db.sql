@@ -683,6 +683,7 @@ CREATE TABLE `clients` (
   `client_abbreviation` varchar(10) DEFAULT NULL,
   `client_notes` text DEFAULT NULL,
   `client_favorite` tinyint(1) NOT NULL DEFAULT 0,
+  `client_ticket_auto_reply` tinyint(1) NOT NULL DEFAULT 1,
   `client_created_at` datetime NOT NULL DEFAULT current_timestamp(),
   `client_updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp(),
   `client_archived_at` datetime DEFAULT NULL,
@@ -2840,6 +2841,7 @@ CREATE TABLE `ticket_replies` (
   `ticket_reply_id` int(11) NOT NULL AUTO_INCREMENT,
   `ticket_reply` longtext NOT NULL,
   `ticket_reply_type` varchar(10) NOT NULL,
+  `ticket_reply_auto_ack` tinyint(1) NOT NULL DEFAULT 0,
   `ticket_reply_time_worked` time DEFAULT NULL,
   `ticket_reply_created_at` datetime NOT NULL DEFAULT current_timestamp(),
   `ticket_reply_updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp(),
@@ -2952,6 +2954,8 @@ CREATE TABLE `tickets` (
   `ticket_resolved_at` datetime DEFAULT NULL,
   `ticket_archived_at` datetime DEFAULT NULL,
   `ticket_first_response_at` datetime DEFAULT NULL,
+  `ticket_auto_reply_due_at` datetime DEFAULT NULL,
+  `ticket_auto_reply_email` varchar(320) DEFAULT NULL,
   `ticket_response_due_at` datetime DEFAULT NULL,
   `ticket_resolution_due_at` datetime DEFAULT NULL,
   `ticket_response_sla_met` tinyint(1) DEFAULT NULL,
@@ -2974,6 +2978,7 @@ CREATE TABLE `tickets` (
   `ticket_order` int(11) NOT NULL DEFAULT 0,
   PRIMARY KEY (`ticket_id`),
   KEY `ticket_response_due_at` (`ticket_response_due_at`),
+  KEY `ticket_auto_reply_due_at` (`ticket_auto_reply_due_at`),
   KEY `ticket_resolution_due_at` (`ticket_resolution_due_at`),
   KEY `ticket_client_id` (`ticket_client_id`,`ticket_archived_at`),
   KEY `ticket_vendor_active` (`ticket_vendor_id`,`ticket_resolved_at`,`ticket_created_at`)
@@ -3236,6 +3241,7 @@ CREATE TABLE `vendors` (
   `vendor_accessed_at` datetime DEFAULT NULL,
   `vendor_client_id` int(11) NOT NULL DEFAULT 0,
   `vendor_template_id` int(11) NOT NULL DEFAULT 0,
+  `vendor_ticket_auto_reply` tinyint(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (`vendor_id`),
   KEY `vendor_client_id` (`vendor_client_id`,`vendor_archived_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

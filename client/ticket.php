@@ -270,7 +270,7 @@ if (isset($_GET['id']) && intval($_GET['id'])) {
 
         <?php
         $sql = mysqli_query($mysqli, "SELECT contact_name, contact_photo, ticket_reply, ticket_reply_by, ticket_reply_created_at,
-            ticket_reply_id, ticket_reply_type, ticket_reply_updated_at, user_avatar, user_id,
+            ticket_reply_id, ticket_reply_type, ticket_reply_auto_ack, ticket_reply_updated_at, user_avatar, user_id,
             user_name FROM ticket_replies LEFT JOIN users ON ticket_reply_by = user_id LEFT JOIN contacts ON ticket_reply_by = contact_id WHERE ticket_reply_ticket_id = $ticket_id AND ticket_reply_archived_at IS NULL AND ticket_reply_type != 'Internal' ORDER BY ticket_reply_id DESC");
 
         while ($row = mysqli_fetch_assoc($sql)) {
@@ -281,7 +281,11 @@ if (isset($_GET['id']) && intval($_GET['id'])) {
             $ticket_reply_by = intval($row['ticket_reply_by']);
             $ticket_reply_type = $row['ticket_reply_type'];
 
-            if ($ticket_reply_type == "Client") {
+            if ($row['ticket_reply_auto_ack']) {
+                $ticket_reply_by_display = 'ONYST (automatic acknowledgment)';
+                $user_initials = 'O';
+                $user_avatar = '';
+            } elseif ($ticket_reply_type == "Client") {
                 $ticket_reply_by_display = escapeHtml($row['contact_name']);
                 $user_initials = initials($row['contact_name']);
                 $user_avatar = $row['contact_photo'];

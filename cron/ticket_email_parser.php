@@ -377,8 +377,8 @@ foreach ($messages as $message) {
         // Skip vacation/out-of-office auto-responders to prevent mail loops (RFC 3834)
         // Some* NDRs use "auto-generated" and are still handled by the NDR logic below
         // Todo: Combine with the NDR logic so we can update the ticket too
-        $auto_submitted = strtolower((string)($message->header('Auto-Submitted')?->getValue() ?? ''));
-        $precedence     = strtolower((string)($message->header('Precedence')?->getValue() ?? ''));
+        $auto_submitted = strtolower(trim((string)($message->header('Auto-Submitted')?->getValue() ?? '')));
+        $precedence     = strtolower(trim((string)($message->header('Precedence')?->getValue() ?? '')));
         if (str_starts_with($auto_submitted, 'auto-replied') || $precedence === 'auto_reply') {
             logApp("Cron-Email-Parser", "info", "Email parser skipped auto-responder from $from_email ($subject)");
                 appNotify(
@@ -392,6 +392,8 @@ foreach ($messages as $message) {
             $message->move($targetFolderPath);
             continue;
         }
+        $allow_auto_reply = in_array($auto_submitted, ['', 'no'], true)
+            && !in_array($precedence, ['bulk', 'list', 'junk'], true);
 
         // Save original message as .eml (ImapEngine: raw headers + raw body)
         mkdirMissing('../uploads/tmp/');
@@ -522,7 +524,7 @@ foreach ($messages as $message) {
                 $contact_email = $rowc['contact_email'];
                 $client_id     = intval($rowc['owner_client_id']);
 
-                $email_processed = addTicket($contact_id, $contact_name, $contact_email, $client_id, $date, $subject, $message_body, $attachments, $original_message_file, $ccs, intval($rowc['owner_vendor_id']));
+                $email_processed = addTicket($contact_id, $contact_name, $contact_email, $client_id, $date, $subject, $message_body, $attachments, $original_message_file, $ccs, intval($rowc['owner_vendor_id']), $allow_auto_reply);
             }
         }
 
@@ -544,7 +546,7 @@ foreach ($messages as $message) {
                 logAudit("Contact", "Create", "Email parser: created contact " . mysqli_real_escape_string($mysqli, $contact_name), $client_id, $contact_id);
                 triggerCustomAction('contact_create', $contact_id);
 
-                $email_processed = addTicket($contact_id, $contact_name, $contact_email, $client_id, $date, $subject, $message_body, $attachments, $original_message_file, $ccs);
+                $email_processed = addTicket($contact_id, $contact_name, $contact_email, $client_id, $date, $subject, $message_body, $attachments, $original_message_file, $ccs, 0, $allow_auto_reply);
             }
         }
 

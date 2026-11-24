@@ -93,8 +93,8 @@ $ticket=mysqli_fetch_assoc(mysqli_query($mysqli,'SELECT * FROM tickets ORDER BY 
 $ticketId=intval($ticket['ticket_id']);$number=intval($ticket['ticket_number']);
 vendorCheck(intval($ticket['ticket_vendor_id'])===21 && intval($ticket['ticket_contact_id'])===$new && intval($ticket['ticket_client_id'])===0,'Inbound ticket correctly belongs to vendor/contact');
 vendorCheck(intval(mysqli_fetch_row(mysqli_query($mysqli,'SELECT COUNT(*) FROM ticket_watchers'))[0])===0,'Known vendor not duplicated as guest watcher');
-$mail=mysqli_fetch_assoc(mysqli_query($mysqli,'SELECT * FROM email_queue ORDER BY email_id DESC LIMIT 1'));
-vendorCheck($mail['email_recipient']==='second@fixture.invalid','Native acknowledgement addressed to vendor contact');
+vendorCheck(intval(mysqli_fetch_row(mysqli_query($mysqli,'SELECT COUNT(*) FROM email_queue'))[0])===0,'Inbound parsing does not queue the old immediate acknowledgment');
+vendorCheck($ticket['ticket_auto_reply_email']==='second@fixture.invalid' && $ticket['ticket_auto_reply_due_at']!==null,'Delayed acknowledgment is recorded for the original vendor sender');
 vendorCheck(addReply('second@fixture.invalid',date('Y-m-d H:i:s'),'Fixture vendor ticket',$number,'<p>Vendor response</p>',[]),'Native vendor reply accepted');
 $reply=mysqli_fetch_assoc(mysqli_query($mysqli,'SELECT * FROM ticket_replies ORDER BY ticket_reply_id DESC LIMIT 1'));
 vendorCheck($reply['ticket_reply_type']==='Client' && intval($reply['ticket_reply_by'])===$new,'Vendor reply retains native external-reply behavior');

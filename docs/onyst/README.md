@@ -58,3 +58,9 @@ New Ticket has a combined search for clients, vendors, and contacts. Selecting a
 The inbound parser matches active vendor contacts by exact sender email, assigns ticket_vendor_id and ticket_contact_id, and scopes replies and fuzzy duplicate matching to the identified owner. Addresses shared across owners are left unassigned for manual review; a known ticket's owner provides context for replies. Global vendor mail is not assigned to a guessed client. Existing native contact joins deliver public replies, notifications, and the ONYST resolution choices to vendor contacts with the approved email wrapper unchanged.
 
 Run `php tests/onyst_vendor_contacts_test.php --database` in an isolated checkout to test real migration, ingestion, and queued outbound behavior using connection-local TEMPORARY tables. It never sends SMTP or changes production rows. RunCloud deployments must apply native database migrations with `php scripts/update_cli.php --update_db` after the fast-forward and validation.
+
+## Delayed inbound ticket acknowledgments
+
+The Ticket Auto-Replies cron job checks for eligible email tickets every minute. It waits 60 minutes after intake, then checks that the ticket is still New, untriaged, and has no activity or overdue deadline. Client and vendor edit forms have an Automatic ticket replies switch. Migration 2.8.0 carries over existing ITFlow client tags named `no auto-responder` as disabled switches.
+
+An acknowledgment is a single public **Ticket Updated** reply to the original sender. Saving the reply and queuing its email share one transaction. It does not count as staff time or an SLA first response and is excluded from Last Response and Waiting on us calculations. Only tickets scheduled by the new intake code are eligible. The default automatic **Ticket Created** messages are disabled in the queue and at delivery.

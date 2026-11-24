@@ -9,7 +9,7 @@ $vendor_id = intval($_GET['id']);
 $sql = mysqli_query($mysqli, "SELECT vendor_account_number, vendor_client_id, vendor_code, vendor_contact_name,
     vendor_description, vendor_email, vendor_extension, vendor_hours, vendor_name,
     vendor_notes, vendor_phone, vendor_phone_country_code, vendor_sla, vendor_template_id,
-    vendor_website FROM vendors WHERE vendor_id = $vendor_id LIMIT 1");
+    vendor_website, vendor_ticket_auto_reply FROM vendors WHERE vendor_id = $vendor_id LIMIT 1");
 
 $row = mysqli_fetch_assoc($sql);
 $vendor_name = escapeHtml($row['vendor_name']);
@@ -26,6 +26,7 @@ $vendor_sla = escapeHtml($row['vendor_sla']);
 $vendor_code = escapeHtml($row['vendor_code']);
 $vendor_notes = escapeHtml($row['vendor_notes']);
 $vendor_template_id = intval($row['vendor_template_id']);
+$vendor_auto_reply = (int) $row['vendor_ticket_auto_reply'];
 $client_id = intval($row['vendor_client_id']);
 
 if ($client_id) {
@@ -174,6 +175,13 @@ ob_start();
                             <span class="input-group-text"><i class="fa fa-fw fa-key"></i></span>
                         <input type="text" class="form-control" name="code" placeholder="Access Code or Pin" maxlength="200" value="<?= $vendor_code ?>">
                     </div>
+                </div>
+
+                <div class="form-check form-switch mb-3">
+                    <input type="hidden" name="ticket_auto_reply" value="0">
+                    <input class="form-check-input" type="checkbox" name="ticket_auto_reply" value="1" id="vendorTicketAutoReply<?= $vendor_id ?>" <?= $vendor_auto_reply ? 'checked' : '' ?>>
+                    <label class="form-check-label" for="vendorTicketAutoReply<?= $vendor_id ?>">Automatic ticket replies</label>
+                    <div class="form-text">Acknowledge new email tickets after 60 minutes when they still need an initial response.</div>
                 </div>
 
             </div>

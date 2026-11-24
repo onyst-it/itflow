@@ -112,7 +112,9 @@ if (isset($_POST['edit_vendor'])) {
         enforceUserPermission('module_financial', 2);
     }
 
-    mysqli_query($mysqli,"UPDATE vendors SET vendor_name = '$name', vendor_description = '$description', vendor_contact_name = '$contact_name', vendor_phone_country_code = '$phone_country_code', vendor_phone = '$phone', vendor_extension = '$extension', vendor_email = '$email', vendor_website = '$website', vendor_hours = '$hours', vendor_sla = '$sla', vendor_code = '$code',vendor_account_number = '$account_number', vendor_notes = '$notes', vendor_template_id = $vendor_template_id WHERE vendor_id = $vendor_id");
+    $auto_reply_update = isset($_POST['ticket_auto_reply'])
+        ? ', vendor_ticket_auto_reply = ' . (int) ($_POST['ticket_auto_reply'] === '1') : '';
+    mysqli_query($mysqli,"UPDATE vendors SET vendor_name = '$name', vendor_description = '$description', vendor_contact_name = '$contact_name', vendor_phone_country_code = '$phone_country_code', vendor_phone = '$phone', vendor_extension = '$extension', vendor_email = '$email', vendor_website = '$website', vendor_hours = '$hours', vendor_sla = '$sla', vendor_code = '$code',vendor_account_number = '$account_number', vendor_notes = '$notes', vendor_template_id = $vendor_template_id$auto_reply_update WHERE vendor_id = $vendor_id");
 
     onystEnsureVendorContact($vendor_id);
 
