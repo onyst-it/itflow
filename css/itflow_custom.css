@@ -63,6 +63,29 @@
     vertical-align: middle;
 }
 
+.ticket-list-table .checkbox-column .form-check {
+    display: flex;
+    align-items: center;
+}
+
+.ticket-bulk-toggle {
+    width: 2.6rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.text-sm .ticket-list-table .ticket-bulk-toggle {
+    font-size: .75rem !important;
+}
+
+.ticket-created {
+    font-size: .75rem;
+    line-height: 1.2;
+}
+
+.ticket-created .text-secondary {
+    font-size: .7rem;
+}
+
 /* ---------------------------------------------------------------
    AdminLTE 4 compatibility.
    v4 dropped .text-sm and the accent-* / navbar-* / sidebar-dark-*

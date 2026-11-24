@@ -23,6 +23,11 @@ function updateSelectedCount() {
     if (bulkBtn) {
         bulkBtn.hidden = count === 0;
     }
+
+    const bulkToggle = document.getElementById('bulkActionToggle');
+    if (bulkToggle) {
+        bulkToggle.disabled = count === 0;
+    }
 }
 
 // --- Select All Handling ---

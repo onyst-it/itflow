@@ -99,54 +99,54 @@ if ($tickets) {
         <form id="bulkActions" action="post.php" method="post">
             <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
 
-            <?php if (lookupUserPermission("module_support") >= 2) { ?>
-                <!-- Bulk actions - sits with the rows it acts on, and only appears once something is ticked -->
-                <div class="mb-2" id="bulkActionButton" hidden>
-                    <div class="dropdown d-inline-block">
-                        <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-fw fa-layer-group me-2"></i><span id="selectedCount">0</span> selected
-                        </button>
-                        <div class="dropdown-menu">
-                            <a class="dropdown-item ajax-modal" href="#" data-modal-url="modals/ticket/ticket_bulk_assign.php" data-bulk="true">
-                                <i class="fas fa-fw fa-user-check me-2"></i>Assign Agent
-                            </a>
-                            <a class="dropdown-item ajax-modal" href="#" data-modal-url="modals/ticket/ticket_bulk_edit_priority.php" data-bulk="true">
-                                <i class="fas fa-fw fa-thermometer-half me-2"></i>Set Priority
-                            </a>
-                            <a class="dropdown-item ajax-modal" href="#" data-modal-url="modals/ticket/ticket_bulk_edit_category.php" data-bulk="true">
-                                <i class="fas fa-fw fa-layer-group me-2"></i>Set Category
-                            </a>
-                            <a class="dropdown-item ajax-modal" href="#" data-modal-url="modals/ticket/ticket_bulk_add_project.php" data-bulk="true">
-                                <i class="fas fa-fw fa-project-diagram me-2"></i>Set Project
-                            </a>
-                            <div class="dropdown-divider"></div>
-                            <a class="dropdown-item ajax-modal" href="#" data-modal-url="modals/ticket/ticket_bulk_reply.php" data-modal-size="lg" data-bulk="true">
-                                <i class="fas fa-fw fa-paper-plane me-2"></i>Update/Reply
-                            </a>
-                            <a class="dropdown-item ajax-modal" href="#" data-modal-url="modals/ticket/ticket_bulk_merge.php" data-bulk="true">
-                                <i class="fas fa-fw fa-clone me-2"></i>Merge
-                            </a>
-                            <?php require __DIR__ . "/includes/onyst_bulk_resolution_menu.php"; ?>
-                            <?php if (lookupUserPermission("module_support") === 3) { ?>
-                                <div class="dropdown-divider"></div>
-                                <button class="dropdown-item text-danger text-bold confirm-link" type="submit" form="bulkActions" name="bulk_delete_tickets">
-                                    <i class="fas fa-fw fa-trash me-2"></i>Delete
-                                </button>
-                            <?php } ?>
-                        </div>
-                    </div>
-                </div>
-            <?php } ?>
-
             <div class="table-responsive">
-                <table class="table table-striped table-borderless table-hover mb-0 ticket-list-table">
-                    <thead class="text-dark text-nowrap <?php if (!$num_rows[0]) { echo "d-none"; } ?>">
+                <table class="table table-striped table-borderless table-hover align-middle mb-0 ticket-list-table">
+                    <thead class="align-middle text-dark text-nowrap <?php if (!$num_rows[0]) { echo "d-none"; } ?>">
                     <tr>
-                        <td class="checkbox-column border-end">
-                            <div class="form-check">
-                                <input class="form-check-input" id="selectAllCheckbox" type="checkbox" title="Select all on this page">
+                        <th scope="col" class="checkbox-column border-end">
+                            <div class="d-flex align-items-center gap-1">
+                                <div class="form-check">
+                                    <input class="form-check-input" id="selectAllCheckbox" type="checkbox" aria-label="Select all tickets on this page" title="Select all on this page">
+                                </div>
+                                <?php if (lookupUserPermission("module_support") >= 2) { ?>
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary py-0 px-1 ticket-bulk-toggle dropdown-toggle" id="bulkActionToggle"
+                                                type="button" data-bs-toggle="dropdown" data-bs-config='{"popperConfig":{"strategy":"fixed"}}'
+                                                aria-expanded="false" title="Bulk actions for selected tickets" disabled>
+                                            <span class="visually-hidden">Bulk actions. Tickets selected </span><span id="selectedCount">0</span>
+                                        </button>
+                                        <div class="dropdown-menu" aria-labelledby="bulkActionToggle">
+                                            <a class="dropdown-item ajax-modal" href="#" data-modal-url="modals/ticket/ticket_bulk_assign.php" data-bulk="true">
+                                                <i class="fas fa-fw fa-user-check me-2"></i>Assign Agent
+                                            </a>
+                                            <a class="dropdown-item ajax-modal" href="#" data-modal-url="modals/ticket/ticket_bulk_edit_priority.php" data-bulk="true">
+                                                <i class="fas fa-fw fa-thermometer-half me-2"></i>Set Priority
+                                            </a>
+                                            <a class="dropdown-item ajax-modal" href="#" data-modal-url="modals/ticket/ticket_bulk_edit_category.php" data-bulk="true">
+                                                <i class="fas fa-fw fa-layer-group me-2"></i>Set Category
+                                            </a>
+                                            <a class="dropdown-item ajax-modal" href="#" data-modal-url="modals/ticket/ticket_bulk_add_project.php" data-bulk="true">
+                                                <i class="fas fa-fw fa-project-diagram me-2"></i>Set Project
+                                            </a>
+                                            <div class="dropdown-divider"></div>
+                                            <a class="dropdown-item ajax-modal" href="#" data-modal-url="modals/ticket/ticket_bulk_reply.php" data-modal-size="lg" data-bulk="true">
+                                                <i class="fas fa-fw fa-paper-plane me-2"></i>Update/Reply
+                                            </a>
+                                            <a class="dropdown-item ajax-modal" href="#" data-modal-url="modals/ticket/ticket_bulk_merge.php" data-bulk="true">
+                                                <i class="fas fa-fw fa-clone me-2"></i>Merge
+                                            </a>
+                                            <?php require __DIR__ . "/includes/onyst_bulk_resolution_menu.php"; ?>
+                                            <?php if (lookupUserPermission("module_support") === 3) { ?>
+                                                <div class="dropdown-divider"></div>
+                                                <button class="dropdown-item text-danger text-bold confirm-link" type="submit" form="bulkActions" name="bulk_delete_tickets">
+                                                    <i class="fas fa-fw fa-trash me-2"></i>Delete
+                                                </button>
+                                            <?php } ?>
+                                        </div>
+                                    </div>
+                                <?php } ?>
                             </div>
-                        </td>
+                        </th>
 
                         <th>
                             <a class="text-dark" href="?<?= $url_query_strings_sort ?>&sort=ticket_number&order=<?= $disp ?>">
@@ -452,10 +452,9 @@ if ($tickets) {
                             </td>
 
                             <!-- Ticket Created At -->
-                            <td>
-                                <?= $ticket_created_at_time_ago ?>
-                                <br>
-                                <small class="text-secondary"><?= date("$config_date_format $config_time_format", strtotime($ticket_created_at)) ?></small>
+                            <td class="ticket-created">
+                                <div><?= $ticket_created_at_time_ago ?></div>
+                                <div class="text-secondary"><?= date("$config_date_format $config_time_format", strtotime($ticket_created_at)) ?></div>
                             </td>
 
                         </tr>
