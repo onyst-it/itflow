@@ -108,7 +108,7 @@ function addTicket($contact_id, $contact_name, $contact_email, $client_id, $date
     // Internal email
     if ($config_ticket_new_ticket_notification_email) {
         if ($client_id == 0) {
-            $client_name = "Guest";
+            $client_name = $vendor_id ? escapeSql(onystVendor($vendor_id)['vendor_name']) : 'Guest';
             $client_uri = '';
         } else {
             $client_sql = mysqli_query($mysqli, "SELECT client_name FROM clients WHERE client_id = $client_id");
@@ -220,7 +220,7 @@ function addReply($from_email, $date, $subject, $ticket_number, $message, $attac
             return true;
         }
 
-        $sender = onystInboundContact($from_email, $client_id, intval($row['ticket_vendor_id']));
+        $sender = onystInboundContact($from_email, $client_id, intval($row['ticket_vendor_id']), intval($row['ticket_contact_id']));
         if ($sender['state'] === 'matched') {
             $ticket_reply_contact = intval($sender['contact']['contact_id']);
         } else {

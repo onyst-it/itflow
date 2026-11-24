@@ -79,7 +79,7 @@ function onystChooseInboundContact(array $rows): array {
     return $owners ? ['state'=>'matched', 'contact'=>reset($owners)] : ['state'=>'none', 'contact'=>null];
 }
 
-function onystInboundContact(string $email, ?int $client = null, ?int $vendor = null): array {
+function onystInboundContact(string $email, ?int $client = null, ?int $vendor = null, int $primaryContact = 0): array {
     global $mysqli;
     $email = mysqli_real_escape_string($mysqli, trim($email));
     $scope = $client === null ? '' : ' AND ' . onystTicketContactScope($client, $vendor ?? 0);
@@ -88,7 +88,16 @@ function onystInboundContact(string $email, ?int $client = null, ?int $vendor = 
         LEFT JOIN clients cl ON cl.client_id=c.contact_client_id
         WHERE c.contact_email='$email' AND c.contact_archived_at IS NULL $scope
         ORDER BY c.contact_primary DESC,c.contact_id");
-    return onystChooseInboundContact(mysqli_fetch_all($query, MYSQLI_ASSOC));
+    $rows = mysqli_fetch_all($query, MYSQLI_ASSOC);
+    if ($client !== null && $primaryContact) {
+        foreach ($rows as $row) {
+            if (intval($row['contact_id']) === $primaryContact) {
+                $primary = onystChooseInboundContact([$row]);
+                if ($primary['state'] === 'matched') return $primary;
+            }
+        }
+    }
+    return onystChooseInboundContact($rows);
 }
 
 /** Contacts never receive a portal account or a client identity as a side effect. */

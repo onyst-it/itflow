@@ -76,6 +76,8 @@ vendorCheck(onystInboundContact('vendor@fixture.invalid',0,0)['state']==='none',
 mysqli_query($mysqli,"INSERT INTO contacts SET contact_name='Shared Address',contact_email='vendor@fixture.invalid',contact_client_id=11");
 vendorCheck(onystInboundContact('vendor@fixture.invalid')['state']==='ambiguous','Cross-owner address is held for manual assignment');
 vendorCheck(onystInboundContact('vendor@fixture.invalid',0,21)['state']==='matched','Ticket context disambiguates vendor reply');
+vendorCheck(onystInboundContact('vendor@fixture.invalid',11,21)['state']==='ambiguous','Shared email in a combined client/vendor scope remains ambiguous');
+vendorCheck(onystInboundContact('vendor@fixture.invalid',11,21,$vendorId)['state']==='matched','Existing ticket primary contact resolves a shared address');
 foreach (['client','vendor','second@fixture.invalid'] as $term) vendorCheck(count(onystPartySearch($term,'ticket'))>0,'Combined ticket search: '.$term);
 foreach (onystPartySearch('Fixture','contact') as $choice) vendorCheck(strpos($choice['value'],'contact:')!==0,'New Contact searches owners only');
 try { onystValidateTicketContact(11,22,$new); throw new RuntimeException('Wrong vendor was accepted'); }
