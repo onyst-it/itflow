@@ -292,6 +292,35 @@ function onystSyncroImportStatus(mysqli $db): array
     return array_map('intval', $counts) + ['auto_replies' => (int) $autoReplies, 'queued_emails' => (int) $queued];
 }
 
+final class OnystSyncroImportTemporaryFile
+{
+    public readonly string $path;
+    /** @var resource */
+    public $stream;
+
+    public function __construct()
+    {
+        $directory = rtrim(sys_get_temp_dir(), '/\\') . '/itflow-syncro-' . bin2hex(random_bytes(12));
+        if (!mkdir($directory, 0700)) {
+            throw new OnystSyncroImportError('attachment_temporary_storage_unavailable');
+        }
+        $this->path = $directory . '/original';
+        $stream = fopen($this->path, 'x+b');
+        if ($stream === false) {
+            rmdir($directory);
+            throw new OnystSyncroImportError('attachment_temporary_storage_unavailable');
+        }
+        $this->stream = $stream;
+    }
+
+    public function __destruct()
+    {
+        fclose($this->stream);
+        unlink($this->path);
+        rmdir(dirname($this->path));
+    }
+}
+
 function onystSyncroImportDownload(string $url, int $size, ?string $md5): array
 {
     // Syncro signs the original file URL for this S3 bucket. Do not forward Syncro
@@ -307,11 +336,8 @@ function onystSyncroImportDownload(string $url, int $size, ?string $md5): array
         throw new OnystSyncroImportError('original_attachment_metadata_invalid');
     }
 
-    $stream = tmpfile();
-    if ($stream === false) {
-        throw new OnystSyncroImportError('attachment_storage_unavailable');
-    }
-
+    $staged = new OnystSyncroImportTemporaryFile();
+    $stream = $staged->stream;
     if (!function_exists('curl_init') || !function_exists('curl_exec')) {
         throw new OnystSyncroImportError('original_attachment_transport_unavailable');
     }
@@ -341,25 +367,23 @@ function onystSyncroImportDownload(string $url, int $size, ?string $md5): array
     $downloaded = curl_exec($curl);
     $http = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
     if ($http !== 200) {
-        fclose($stream);
         throw new OnystSyncroImportError('original_attachment_download_http_' . $http);
     }
     if ($downloaded === false || $received !== $size ||
         ($md5 !== null && !hash_equals($md5, hash_final($md)))) {
-        fclose($stream);
         throw new OnystSyncroImportError('original_attachment_bytes_mismatch');
     }
 
     rewind($stream);
-    return [$stream, hash_final($sha)];
+    return [$staged, hash_final($sha)];
 }
 
 function onystSyncroImportSaveAttachment(string $path, array $file): void
 {
-    [$name, $stream, $created, $reply, $private, $size, $sha] = $file;
+    [, $staged, , , $private, $size, $sha] = $file;
     if ($private) {
         $key = backupEncryptionKey();
-        if (!backupSealArchive(['attachment' => stream_get_meta_data($stream)['uri']], $path, $key)) {
+        if (!backupSealArchive(['attachment' => $staged->path], $path, $key)) {
             throw new OnystSyncroImportError('private_attachment_storage_failed');
         }
         $opened = openPrivateTicketAttachment($path);
@@ -377,7 +401,7 @@ function onystSyncroImportSaveAttachment(string $path, array $file): void
         if ($saved === false) {
             throw new OnystSyncroImportError('attachment_storage_unavailable');
         }
-        $savedSize = stream_copy_to_stream($stream, $saved);
+        $savedSize = stream_copy_to_stream($staged->stream, $saved);
         fclose($saved);
         $verified = $savedSize === $size && hash_file('sha256', $path) === $sha;
     }
@@ -489,19 +513,21 @@ function onystSyncroImportOne(mysqli $db, array $payload, string $appRoot, bool 
             if (!is_string($file['url']) || (isset($file['md5']) && !is_string($file['md5']))) {
                 throw new OnystSyncroImportError('original_attachment_metadata_invalid');
             }
-            [$stream, $sha] = onystSyncroImportDownload($file['url'], $size, $file['md5'] ?? null);
+            [$staged, $sha] = onystSyncroImportDownload($file['url'], $size, $file['md5'] ?? null);
         } else {
             $bytes = is_string($file['base64'] ?? null) ? base64_decode($file['base64'], true) : false;
-            $stream = tmpfile();
-            if ($bytes === false || strlen($bytes) !== $size || $size > 25 * 1024 * 1024 ||
-                $stream === false || fwrite($stream, $bytes) !== $size) {
+            if ($bytes === false || strlen($bytes) !== $size || $size > 25 * 1024 * 1024) {
                 throw new OnystSyncroImportError('source_attachment_unverified');
             }
-            rewind($stream);
+            $staged = new OnystSyncroImportTemporaryFile();
+            if (fwrite($staged->stream, $bytes) !== $size) {
+                throw new OnystSyncroImportError('attachment_temporary_storage_unavailable');
+            }
+            rewind($staged->stream);
             $sha = hash('sha256', $bytes);
         }
 
-        $attachmentsById[$fileId] = [$name, $stream, $fileCreated, $replyId, $private, $size, $sha];
+        $attachmentsById[$fileId] = [$name, $staged, $fileCreated, $replyId, $private, $size, $sha];
         $original['attachments'][] = [
             'id' => $fileId, 'created_at' => $file['created_at'], 'sha256' => $sha,
         ] + (isset($file['url']) ? [
@@ -582,7 +608,7 @@ function onystSyncroImportOne(mysqli $db, array $payload, string $appRoot, bool 
                  ticket_attachment_reply_id,ticket_attachment_private) VALUES (?,?,?,?,?,?)');
             $expectedFiles = [];
             foreach ($attachmentsById as $file) {
-                [$name, $stream, $fileCreated, $replyId, $private] = $file;
+                [$name, , $fileCreated, $replyId, $private] = $file;
                 $reference = bin2hex(random_bytes(20)) . '.bin';
                 $path = $directory . '/' . $reference;
                 $paths[] = $path;
