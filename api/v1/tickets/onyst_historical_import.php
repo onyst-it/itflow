@@ -312,6 +312,9 @@ function onystSyncroImportDownload(string $url, int $size, ?string $md5): array
         throw new OnystSyncroImportError('attachment_storage_unavailable');
     }
 
+    if (!function_exists('curl_init') || !function_exists('curl_exec')) {
+        throw new OnystSyncroImportError('original_attachment_transport_unavailable');
+    }
     $curl = curl_init($url);
     $sha = hash_init('sha256');
     $md = hash_init('md5');
@@ -321,7 +324,7 @@ function onystSyncroImportDownload(string $url, int $size, ?string $md5): array
         CURLOPT_FOLLOWLOCATION => false,
         CURLOPT_CONNECTTIMEOUT => 5,
         CURLOPT_TIMEOUT => 14,
-        CURLOPT_MAXFILESIZE => $size,
+        CURLOPT_PATH_AS_IS => true,
         CURLOPT_WRITEFUNCTION => static function ($curl, string $chunk) use ($stream, $size, $sha, $md, &$received): int {
             $length = strlen($chunk);
             if ($received + $length > $size || fwrite($stream, $chunk) !== $length) {
@@ -473,7 +476,7 @@ function onystSyncroImportOne(mysqli $db, array $payload, string $appRoot, bool 
         $replyId = onystSyncroImportId($file['comment_id'] ?? null, true);
         $name = onystSyncroImportText($file['name'] ?? null, 1020);
         $size = $file['size'] ?? null;
-        $private = $file['private'] ?? false;
+        $private = $file['private'] ?? isset($file['url']);
         if (isset($attachmentsById[$fileId]) || ($replyId && !isset($replies[$replyId])) ||
             $name === '' || mb_strlen($name, 'UTF-8') > 255 || preg_match('/[\/\\\\\x00-\x1f]/', $name) ||
             !is_bool($private) || !is_int($size) || $size < 0 || ($totalSize += $size) > 500 * 1024 * 1024) {
@@ -700,5 +703,9 @@ try {
     onystSyncroImportResponse(409, ['success' => false, 'error' => $error->getMessage()]);
 } catch (Throwable $error) {
     error_log('ONYST Syncro ticket import failed: ' . get_class($error) . ' (' . $error->getCode() . ')');
-    onystSyncroImportResponse(500, ['success' => false, 'error' => 'ticket_import_failed']);
+    $diagnostic = ($_POST['preview'] ?? false) === true ? [
+        'exception' => get_class($error),
+        'import_line' => $error->getFile() === __FILE__ ? $error->getLine() : null,
+    ] : [];
+    onystSyncroImportResponse(500, ['success' => false, 'error' => 'ticket_import_failed'] + $diagnostic);
 }
