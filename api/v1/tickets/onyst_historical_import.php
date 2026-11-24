@@ -6,7 +6,7 @@ declare(strict_types=1);
  * and SLA entry points are intentionally outside this request handler.
  */
 const ONYST_SYNCRO_IMPORT_ORIGIN = 'Syncro Import';
-const ONYST_SYNCRO_IMPORT_PREFIX = 'SYNCRO-';
+const ONYST_SYNCRO_IMPORT_PREFIX = 'ONY-';
 const ONYST_SYNCRO_IMPORT_PLAN = [
     'pilot' => [7, 'bb5d7d56272351b93d44d2f23bab47c2636d05a6c30685a52b850bdeae5409be'],
     'full' => [8855, 'ec8d9892f874240fd4ba277baf1d4219d42350f1a28eccb33232d27e2679592c'],
@@ -199,6 +199,80 @@ function onystSyncroImportRegister(mysqli $db, string $phase, array $input): arr
     return ['registered' => count($items), 'phase' => $phase, 'scope_sha256' => $approved[1]];
 }
 
+
+function onystSyncroImportRelabel(mysqli $db, int $expectedCount, bool $preview): array
+{
+    $db->begin_transaction();
+    try {
+        $settings = $db->query('SELECT config_ticket_prefix,config_ticket_next_number
+            FROM settings WHERE company_id=1 FOR UPDATE')->fetch_assoc();
+        if (!$settings || $settings['config_ticket_prefix'] !== ONYST_SYNCRO_IMPORT_PREFIX ||
+            (int) $settings['config_ticket_next_number'] < 30000) {
+            throw new OnystSyncroImportError('native_ticket_numbering_changed');
+        }
+
+        $sql = 'SELECT m.source_id,m.source_number,t.ticket_id,t.ticket_number,t.ticket_source,t.ticket_prefix,
+            t.ticket_created_at,t.ticket_updated_at,t.ticket_resolved_at,t.ticket_closed_at,t.ticket_due_at
+            FROM onyst_syncro_ticket_import m LEFT JOIN tickets t ON t.ticket_id=m.ticket_id
+            WHERE m.ticket_id IS NOT NULL ORDER BY m.source_id FOR UPDATE';
+        $before = $db->query($sql)->fetch_all(MYSQLI_ASSOC);
+        if (count($before) !== $expectedCount) {
+            throw new OnystSyncroImportError('imported_ticket_count_changed');
+        }
+
+        $currentRefs = [];
+        $refs = $db->execute_query('SELECT ticket_id,ticket_number FROM tickets WHERE ticket_prefix=?', [ONYST_SYNCRO_IMPORT_PREFIX]);
+        while ($ref = $refs->fetch_assoc()) {
+            $currentRefs[(int) $ref['ticket_number']][] = (int) $ref['ticket_id'];
+        }
+        $oldPrefixCount = 0;
+        foreach ($before as $row) {
+            $number = (int) $row['source_number'];
+            if (!$row['ticket_id'] || $number <= 0 || $number >= 30000 || $number !== (int) $row['ticket_number'] ||
+                $row['ticket_source'] !== ONYST_SYNCRO_IMPORT_ORIGIN ||
+                !in_array($row['ticket_prefix'], ['SYNCRO-', ONYST_SYNCRO_IMPORT_PREFIX], true)) {
+                throw new OnystSyncroImportError('imported_ticket_identity_changed');
+            }
+            if (array_diff($currentRefs[$number] ?? [], [(int) $row['ticket_id']])) {
+                throw new OnystSyncroImportError('ticket_reference_collision');
+            }
+            if ($row['ticket_prefix'] === 'SYNCRO-') {
+                $oldPrefixCount++;
+            }
+        }
+
+        if (!$preview && $oldPrefixCount) {
+            $db->execute_query("UPDATE tickets t JOIN onyst_syncro_ticket_import m ON m.ticket_id=t.ticket_id
+                SET t.ticket_prefix=?,t.ticket_updated_at=t.ticket_updated_at
+                WHERE t.ticket_source=? AND t.ticket_prefix='SYNCRO-'",
+                [ONYST_SYNCRO_IMPORT_PREFIX, ONYST_SYNCRO_IMPORT_ORIGIN]);
+            if ($db->affected_rows !== $oldPrefixCount) {
+                throw new OnystSyncroImportError('prefix_update_count_changed');
+            }
+
+            $after = $db->query($sql)->fetch_all(MYSQLI_ASSOC);
+            foreach ($before as $index => $row) {
+                $row['ticket_prefix'] = ONYST_SYNCRO_IMPORT_PREFIX;
+                if ($row !== ($after[$index] ?? null)) {
+                    throw new OnystSyncroImportError('original_ticket_dates_or_identity_changed');
+                }
+            }
+        }
+        $db->commit();
+        return [
+            'prefix' => ONYST_SYNCRO_IMPORT_PREFIX,
+            'verified_imported_tickets' => count($before),
+            'legacy_prefix_remaining' => $preview ? $oldPrefixCount : 0,
+            'prefixes_changed' => $preview ? 0 : $oldPrefixCount,
+            'native_next_number' => (int) $settings['config_ticket_next_number'],
+            'original_numbers_and_timestamps_verified' => true,
+        ];
+    } catch (Throwable $error) {
+        $db->rollback();
+        throw $error;
+    }
+}
+
 function onystSyncroImportStatus(mysqli $db): array
 {
     if (!onystSyncroImportTableExists($db)) {
@@ -209,7 +283,11 @@ function onystSyncroImportStatus(mysqli $db): array
     $autoReplies = $db->query("SELECT COUNT(*) FROM onyst_syncro_ticket_import m JOIN tickets t ON t.ticket_id=m.ticket_id
         WHERE t.ticket_auto_reply_due_at IS NOT NULL OR t.ticket_auto_reply_email IS NOT NULL
         OR t.ticket_sla_id<>0 OR EXISTS(SELECT 1 FROM ticket_replies r WHERE r.ticket_reply_ticket_id=t.ticket_id AND r.ticket_reply_auto_ack=1)")->fetch_row()[0];
-    $queued = $db->query("SELECT COUNT(*) FROM email_queue WHERE email_subject LIKE '%[SYNCRO-%'")->fetch_row()[0];
+    $queued = $db->query("SELECT COUNT(*) FROM email_queue e WHERE EXISTS (
+        SELECT 1 FROM onyst_syncro_ticket_import m JOIN tickets t ON t.ticket_id=m.ticket_id
+        WHERE e.email_queued_at >= m.imported_at - INTERVAL 1 SECOND
+        AND (LOCATE(CONCAT('[', t.ticket_prefix, t.ticket_number, ']'), e.email_subject) > 0
+             OR LOCATE(CONCAT('[SYNCRO-', m.source_number, ']'), e.email_subject) > 0))")->fetch_row()[0];
     return array_map('intval', $counts) + ['auto_replies' => (int) $autoReplies, 'queued_emails' => (int) $queued];
 }
 
@@ -225,7 +303,10 @@ function onystSyncroImportOne(mysqli $db, array $payload, string $appRoot, bool 
     if (mb_strlen($subject, 'UTF-8') > 500) {
         throw new OnystSyncroImportError('subject_exceeds_destination_limit');
     }
-    $setting = $db->query('SELECT config_timezone FROM settings WHERE company_id=1')->fetch_row();
+    $setting = $db->query('SELECT config_timezone,config_ticket_prefix,config_ticket_next_number FROM settings WHERE company_id=1')->fetch_row();
+    if ($setting[1] !== ONYST_SYNCRO_IMPORT_PREFIX || (int) $setting[2] < 30000 || $number >= 30000) {
+        throw new OnystSyncroImportError('native_ticket_numbering_changed');
+    }
     $timezone = new DateTimeZone($setting[0]);
     $original = array_intersect_key($source, array_flip(['created_at', 'updated_at', 'resolved_at', 'closed_at', 'due_at', 'status']));
     $created = onystSyncroImportDate($source['created_at'] ?? null, $timezone, true);
@@ -432,7 +513,15 @@ try {
     } elseif ($action === 'register') {
         onystSyncroImportPreflight($mysqli);
         $response = onystSyncroImportRegister($mysqli, (string) ($_POST['phase'] ?? ''), $_POST['tickets'] ?? []);
+    } elseif ($action === 'prefix_preview' || $action === 'prefix_apply') {
+        onystSyncroImportPreflight($mysqli);
+        $response = onystSyncroImportRelabel($mysqli, onystSyncroImportId($_POST['expected_count'] ?? null), $action === 'prefix_preview');
     } elseif ($action === 'pending') {
+        $legacy = $mysqli->execute_query('SELECT 1 FROM onyst_syncro_ticket_import m
+            JOIN tickets t ON t.ticket_id=m.ticket_id WHERE t.ticket_prefix<>? LIMIT 1', [ONYST_SYNCRO_IMPORT_PREFIX]);
+        if ($legacy->num_rows) {
+            throw new OnystSyncroImportError('prefix_correction_required');
+        }
         $limit = max(1, min(40, (int) ($_POST['limit'] ?? 20)));
         $response = ['tickets' => $mysqli->query("SELECT source_id,source_number,source_customer_id,client_id,vendor_id,contact_id
             FROM onyst_syncro_ticket_import WHERE ticket_id IS NULL AND (last_attempt_at IS NULL OR last_attempt_at <= NOW() - INTERVAL 10 MINUTE)
