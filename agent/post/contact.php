@@ -34,6 +34,11 @@ if (isset($_POST['add_contact'])) {
 
     $client_id = intval($_POST['client_id']);
 
+    if ($client_id <= 0 || !getFieldById('clients', $client_id, 'client_name')) {
+        flashAlert('Choose a client or vendor for this contact.', 'error');
+        redirect();
+    }
+
     enforceClientAccess($client_id);
 
     // Create User Account

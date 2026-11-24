@@ -37,6 +37,7 @@ if (!in_array('--database',$argv,true)) {
 // Every writable table is connection-local TEMPORARY storage. No production rows,
 // configuration, email queue entries, or uploads are modified by these tests.
 $app = dirname(__DIR__);
+if (file_exists($app.'/functions/custom/custom_action_handler.php')) throw new RuntimeException('Run these tests in an isolated checkout without custom hooks.');
 require $app.'/config.php';
 require $app.'/functions.php';
 require $app.'/includes/inc_set_timezone.php';
@@ -44,15 +45,18 @@ require $app.'/functions/ticket_email_ingest.php';
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 $settingsFixture = mysqli_fetch_assoc(mysqli_query($mysqli,'SELECT * FROM settings WHERE company_id=1'));
 $tables=['settings','vendors','contacts','clients','tickets','ticket_replies','ticket_watchers','ticket_attachments','email_queue','logs','app_logs','notifications','ticket_history','sla_history','tasks','canned_responses','sla_assignments','slas'];
-foreach ($tables as $table) mysqli_query($mysqli,"CREATE TEMPORARY TABLE `$table` LIKE `$table`");
+foreach ($tables as $table) {
+    $ddl = mysqli_fetch_row(mysqli_query($mysqli,"SHOW CREATE TABLE `$table`"))[1];
+    mysqli_query($mysqli, preg_replace('/^CREATE TABLE/', 'CREATE TEMPORARY TABLE', $ddl, 1));
+}
 $columns=implode(',',array_map(fn($column)=>'`'.$column.'`',array_keys($settingsFixture)));
 $values=implode(',',array_map(fn($value)=>$value===null?'NULL':"'".mysqli_real_escape_string($mysqli,(string)$value)."'",array_values($settingsFixture)));
 mysqli_query($mysqli,"INSERT INTO settings ($columns) VALUES ($values)");
 unset($settingsFixture,$values);
 mysqli_query($mysqli,"UPDATE settings SET config_ticket_next_number=900000,config_ticket_from_email='help@fixture.invalid',config_ticket_from_name='Fixture Support',config_smtp_provider='standard_smtp' WHERE company_id=1");
 $session_is_admin=true;$session_user_id=1;$session_name='Fixture Agent';$session_ip='127.0.0.1';$session_user_agent='Isolated fixture';
-mysqli_query($mysqli,"INSERT INTO clients SET client_id=11,client_name='Fixture Client'");
-mysqli_query($mysqli,"INSERT INTO clients SET client_id=12,client_name='Other Fixture Client'");
+mysqli_query($mysqli,"INSERT INTO clients SET client_id=11,client_name='Fixture Client',client_currency_code='USD',client_net_terms=0");
+mysqli_query($mysqli,"INSERT INTO clients SET client_id=12,client_name='Other Fixture Client',client_currency_code='USD',client_net_terms=0");
 mysqli_query($mysqli,"INSERT INTO contacts SET contact_id=101,contact_name='Fixture Client Person',contact_email='client@fixture.invalid',contact_client_id=11");
 mysqli_query($mysqli,"INSERT INTO vendors SET vendor_id=21,vendor_name='Fixture Vendor',vendor_contact_name='Fixture Vendor Person',vendor_email='vendor@fixture.invalid',vendor_client_id=0");
 mysqli_query($mysqli,"INSERT INTO vendors SET vendor_id=22,vendor_name='Other Fixture Vendor',vendor_email='other@fixture.invalid',vendor_client_id=12");

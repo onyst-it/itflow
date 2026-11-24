@@ -5,7 +5,7 @@ require_once '../../../includes/modal_header.php';
 $client_id = intval($_GET['client_id'] ?? 0);
 $contact_id = intval($_GET['contact_id'] ?? 0);
 $vendor_id = intval($_GET['vendor_id'] ?? 0);
-if ($vendor_id) onystRequireTicketContact($client_id, $vendor_id, $contact_id);
+if ($vendor_id || $contact_id) onystRequireTicketContact($client_id, $vendor_id, $contact_id);
 $project_id = intval($_GET['project_id'] ?? 0);
 $asset_id = intval($_GET['asset_id'] ?? 0);
 
@@ -271,8 +271,8 @@ ob_start();
 
 
 <!-- Ticket Client/Contact JS -->
-<script src="/agent/js/tickets_add_modal.js"></script>
-<script src="/agent/js/onyst_party_search.js"></script>
+<script src="/agent/js/tickets_add_modal.js?v=vendor-contacts-1"></script>
+<script src="/agent/js/onyst_party_search.js?v=vendor-contacts-1"></script>
 
 <script src="/agent/js/ticket_tasks_modal.js"></script>
 

@@ -3,6 +3,7 @@
 require_once '../../../includes/modal_header.php';
 
 $client_id = intval($_GET['client_id'] ?? 0);
+if ($client_id) enforceClientAccess($client_id);
 
 // Opened from an "Add Primary Contact" link, so the box below starts ticked.
 // A default, not a lock - it is still a normal checkbox.
@@ -332,5 +333,5 @@ itflowReady(function () {
 
 <?php
 
-echo '<script src="/agent/js/onyst_party_search.js"></script>';
+echo '<script src="/agent/js/onyst_party_search.js?v=vendor-contacts-1"></script>';
 require_once '../../../includes/modal_footer.php';

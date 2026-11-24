@@ -8,7 +8,7 @@ $contacts = mysqli_query($mysqli, "SELECT * FROM contacts WHERE contact_vendor_i
 ?>
 <div class="card">
     <div class="card-header bg-dark d-flex justify-content-between align-items-center">
-        <h3 class="card-title m-0"><i class="fas fa-address-book me-2"></i><?= escapeHtml($vendor['vendor_name']) ?> — Contacts</h3>
+        <h3 class="card-title m-0"><i class="fas fa-address-book me-2"></i><?= escapeHtml($vendor['vendor_name']) ?> â€” Contacts</h3>
         <?php if ($can_edit) { ?><button class="btn btn-primary ajax-modal" data-modal-url="modals/vendor/vendor_contact_edit.php?vendor_id=<?= $vendor_id ?>"><i class="fas fa-plus me-2"></i>New Contact</button><?php } ?>
     </div>
     <div class="card-body">
@@ -19,7 +19,7 @@ $contacts = mysqli_query($mysqli, "SELECT * FROM contacts WHERE contact_vendor_i
                 <td><?= escapeHtml($contact['contact_name']) ?> <?= $contact['contact_primary'] ? '<span class="badge bg-primary">Primary</span>' : '' ?> <?= $archived ? '<span class="badge bg-secondary">Archived</span>' : '' ?></td>
                 <td><?= escapeHtml($contact['contact_title']) ?></td><td><?= escapeHtml($contact['contact_email']) ?></td><td><?= escapeHtml($contact['contact_phone']) ?></td>
                 <td class="text-nowrap">
-                    <?php if (!$archived && lookupUserPermission('module_support') >= 2) { ?><button class="btn btn-sm btn-light ajax-modal" data-modal-url="modals/ticket/ticket_add.php?client_id=<?= $client_id ?>&vendor_id=<?= $vendor_id ?>&contact_id=<?= $id ?>">New Ticket</button><?php } ?>
+                    <?php if (!$archived && empty($vendor['vendor_archived_at']) && lookupUserPermission('module_support') >= 2) { ?><button class="btn btn-sm btn-light ajax-modal" data-modal-url="modals/ticket/ticket_add.php?client_id=<?= $client_id ?>&vendor_id=<?= $vendor_id ?>&contact_id=<?= $id ?>">New Ticket</button><?php } ?>
                     <?php if ($can_edit) { ?>
                         <?php if (!$archived) { ?><button class="btn btn-sm btn-light ajax-modal" data-modal-url="modals/vendor/vendor_contact_edit.php?vendor_id=<?= $vendor_id ?>&contact_id=<?= $id ?>">Edit</button><?php } ?>
                         <form action="post.php" method="post" class="d-inline">

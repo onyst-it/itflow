@@ -248,7 +248,7 @@ ob_start();
 
 
 <!-- Recurring Ticket Client/Contact JS -->
-<script src="/agent/js/tickets_add_modal.js"></script>
+<script src="/agent/js/tickets_add_modal.js?v=vendor-contacts-1"></script>
 
 <script src="/agent/js/ticket_tasks_modal.js"></script>
 
