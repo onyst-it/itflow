@@ -161,7 +161,7 @@ $kanban = array_values($statuses);
                             <?php if ($ticket_sla_alert_stage == 2) { ?>
                                 <span class="badge bg-danger" title="SLA breached"><i class="fas fa-fw fa-stopwatch"></i></span>
                             <?php } elseif ($ticket_sla_alert_stage == 1) { ?>
-                                <span class="badge bg-warning text-dark" title="SLA at risk"><i class="fas fa-fw fa-stopwatch"></i></span>
+                                <span class="badge bg-warning text-dark ticket-sla-warning" title="SLA at risk"><i class="fas fa-fw fa-stopwatch"></i></span>
                             <?php } ?>
 
                             <span class="drag-handle-class" title="Drag to move"><i class="fas fa-grip-vertical"></i></span>

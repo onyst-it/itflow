@@ -1,20 +1,11 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Generator: Adobe Illustrator 27.6.1, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
-<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
-	 viewBox="0 0 620.9 118" style="enable-background:new 0 0 620.9 118;" xml:space="preserve">
-<style type="text/css">
-	.st0{fill-rule:evenodd;clip-rule:evenodd;fill:#FF9300;}
-	.st1{opacity:0.8;fill-rule:evenodd;clip-rule:evenodd;fill:#FFFFFF;enable-background:new    ;}
-	.st2{opacity:0.8;fill-rule:evenodd;clip-rule:evenodd;fill:#FF9300;enable-background:new    ;}
-	.st3{fill:#FFFFFF;}
-</style>
-<path class="st0" d="M26.9,33.4c22.4-9.5,48.2,1,57.7,23.4s-1,48.2-23.4,57.7s-48.2-1-57.7-23.4l0,0C-5.9,68.8,4.5,42.9,26.9,33.4
+<svg class="brand-text onyst-sidebar-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620.9 118" width="150" height="29" role="img" aria-label="ONYST">
+<path fill="#FF9300" fill-rule="evenodd" clip-rule="evenodd" d="M26.9,33.4c22.4-9.5,48.2,1,57.7,23.4s-1,48.2-23.4,57.7s-48.2-1-57.7-23.4l0,0C-5.9,68.8,4.5,42.9,26.9,33.4
 	L26.9,33.4"/>
-<path class="st1" d="M36.3,48.4C2,63.8,1.5,99.9,34.1,116.8c-11.7-19.5,1-39.3,12.7-43.5l34.6-14.6c1.6-0.6,3.1-1.3,4.6-2.1
+<path fill="#FFFFFF" opacity=".8" fill-rule="evenodd" clip-rule="evenodd" d="M36.3,48.4C2,63.8,1.5,99.9,34.1,116.8c-11.7-19.5,1-39.3,12.7-43.5l34.6-14.6c1.6-0.6,3.1-1.3,4.6-2.1
 	c11-6.2,15.3-22,7.6-31.7C93.5,24.9,50.9,41.9,36.3,48.4z"/>
-<path class="st2" d="M34.3,54.4l1.2-0.5l59.2-25c10.5-5.4,15.3-17.8,11.2-28.8l-79,33.4C4.5,43-6,68.8,3.5,91.2
+<path fill="#FF9300" opacity=".8" fill-rule="evenodd" clip-rule="evenodd" d="M34.3,54.4l1.2-0.5l59.2-25c10.5-5.4,15.3-17.8,11.2-28.8l-79,33.4C4.5,43-6,68.8,3.5,91.2
 	c5.5,13,16.8,22.5,30.6,25.7C16.9,108.7,9.6,88.2,17.7,71C21.1,63.7,27,57.8,34.3,54.4"/>
-<path class="st3" d="M177.4,30.7h-34.3c-4.7,0-8.8,1.7-12.2,5.1l0,0c-3.3,3.3-5.1,7.4-5.1,12.1l0,0V88c0,4.7,1.7,8.8,5.1,12.2l0,0
+<path fill="#FFFFFF" d="M177.4,30.7h-34.3c-4.7,0-8.8,1.7-12.2,5.1l0,0c-3.3,3.3-5.1,7.4-5.1,12.1l0,0V88c0,4.7,1.7,8.8,5.1,12.2l0,0
 	c3.4,3.3,7.5,5.1,12.2,5.1l0,0h34.3c4.7,0,8.8-1.7,12.1-5.1l0,0c3.4-3.4,5.1-7.5,5.1-12.2l0,0V47.9c0-4.7-1.7-8.8-5.1-12.1l0,0
 	C186.2,32.4,182.2,30.7,177.4,30.7L177.4,30.7z M177.4,116.7h-34.3c-8,0-14.7-2.7-20.3-8.4l0,0c-5.6-5.6-8.4-12.4-8.4-20.3l0,0V47.9
 	c0-7.9,2.7-14.7,8.4-20.3l0,0c5.6-5.6,12.4-8.4,20.3-8.4l0,0h34.3c7.9,0,14.7,2.7,20.3,8.4l0,0c5.6,5.6,8.4,12.4,8.4,20.3l0,0V88

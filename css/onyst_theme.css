@@ -43,7 +43,6 @@
     --bs-heading-color: var(--onyst-text);
     --bs-border-color: var(--onyst-border);
     --bs-border-color-translucent: rgba(255, 235, 246, .15);
-    --bs-light-rgb: 46, 41, 44;
     --bs-dark-rgb: 24, 22, 24;
     --bs-primary-text-emphasis: var(--onyst-orange-light);
     --bs-primary-bg-subtle: #3e2d20;
@@ -76,6 +75,12 @@
 .theme-onyst-dark .app-sidebar .nav-link,
 .theme-onyst-dark .app-sidebar .nav-header {
     color: var(--onyst-muted);
+}
+
+.theme-onyst-dark .app-sidebar .nav-link .badge.right {
+    background-color: var(--onyst-raised);
+    color: var(--onyst-text) !important;
+    font-variant-numeric: tabular-nums;
 }
 
 .theme-onyst-dark .app-sidebar :is(.sidebar-menu, .nav-treeview) > .nav-item > .nav-link.active {
@@ -184,26 +189,29 @@ html.theme-onyst-dark[data-bs-theme="dark"] .table-success { --bs-table-bg: #253
 html.theme-onyst-dark[data-bs-theme="dark"] .table-primary { --bs-table-bg: #392d25; }
 html.theme-onyst-dark[data-bs-theme="dark"] .table-secondary { --bs-table-bg: var(--bs-secondary-bg); }
 
-/* Keep the pale waiting cue under the bulk checkbox, away from the ticket text. */
-html.theme-onyst-dark[data-bs-theme="dark"] .ticket-list-table > tbody > .table-warning {
+/* Keep the waiting cue under the bulk checkbox, away from the ticket text. */
+html.theme-onyst-dark[data-bs-theme="dark"] .ticket-list-table > tbody > .ticket-sla-at-risk {
+    --bs-table-bg: #38262d;
+}
+
+html.theme-onyst-dark[data-bs-theme="dark"] .ticket-list-table > tbody > .table-warning.ticket-waiting-on-us:not(.ticket-sla-at-risk) {
     --bs-table-bg: var(--bs-body-bg);
 }
 
-html.theme-onyst-dark[data-bs-theme="dark"] .ticket-list-table > tbody > .table-warning > .checkbox-column {
-    --bs-table-striped-bg: #f2e6c3;
-    --bs-table-hover-bg: #f8eccb;
+html.theme-onyst-dark[data-bs-theme="dark"] .ticket-list-table > tbody > .ticket-waiting-on-us > .checkbox-column {
+    --bs-table-striped-bg: #344756;
+    --bs-table-hover-bg: #3d5161;
     --bs-table-active-bg: var(--bs-table-hover-bg);
     background-color: var(--bs-table-striped-bg) !important;
 }
 
-html.theme-onyst-dark[data-bs-theme="dark"] .ticket-list-table .table-warning .checkbox-column .form-check-input {
-    background-color: #fff8e9;
-    border-color: #715c44;
+html.theme-onyst-dark[data-bs-theme="dark"] .ticket-list-table .ticket-waiting-on-us .checkbox-column .form-check-input {
+    background-color: #202b33;
+    border-color: #91a8ba;
 }
 
-html.theme-onyst-dark[data-bs-theme="dark"] .ticket-list-table .table-warning .checkbox-column .form-check-input:checked {
-    background-color: var(--onyst-charcoal);
-    border-color: var(--onyst-charcoal);
+html.theme-onyst-dark[data-bs-theme="dark"] .ticket-list-table .ticket-waiting-on-us .checkbox-column .form-check-input:checked {
+    background-color: #456276;
 }
 
 html.theme-onyst-dark[data-bs-theme="dark"] :is(.ticket-list-table, .ticket-fields, .kanban-board, .ticket-reply) .badge:is(.bg-warning, .text-bg-warning) {
@@ -214,6 +222,11 @@ html.theme-onyst-dark[data-bs-theme="dark"] :is(.ticket-list-table, .ticket-fiel
 html.theme-onyst-dark[data-bs-theme="dark"] :is(.ticket-list-table, .ticket-fields, .kanban-board) .badge:is(.bg-danger, .text-bg-danger) {
     background-color: #562a32 !important;
     color: #ffbebc !important;
+}
+
+html.theme-onyst-dark[data-bs-theme="dark"] :is(.ticket-list-table, .ticket-fields, .kanban-board) .badge.ticket-sla-warning {
+    background-color: #452b35 !important;
+    color: #f4bac6 !important;
 }
 
 html.theme-onyst-dark[data-bs-theme="dark"] :is(.ticket-list-table, .ticket-fields, .kanban-board, .ticket-reply) .badge:is(.bg-info, .text-bg-info) {
@@ -276,6 +289,14 @@ html.theme-onyst-dark[data-bs-theme="dark"] .kanban-card {
 
 html.theme-onyst-dark[data-bs-theme="dark"] .kanban-card:hover {
     border-color: var(--onyst-orange);
+}
+
+html.theme-onyst-dark[data-bs-theme="dark"] .kanban-card-at-risk {
+    border-inline-start-color: #965564;
+}
+
+html.theme-onyst-dark[data-bs-theme="dark"] .kanban-card-breached {
+    border-inline-start-color: #c36b77;
 }
 
 html.theme-onyst-dark[data-bs-theme="dark"] :is(.kanban-card-number, .kanban-card-subject) {

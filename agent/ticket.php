@@ -402,6 +402,11 @@ if (isset($_GET['ticket_id'])) {
                 $sla_state = $sla_overdue ? 'breached' : 'running';
                 $sla_label = $sla_next_label . ' ' . timeAgo($sla_next_due);
                 $sla_class = $sla_overdue ? 'bg-danger' : 'bg-light border';
+                if (!$sla_overdue && $ticket_sla_alert_stage == 1) {
+                    $sla_state = 'at_risk';
+                    $sla_label = 'SLA at risk &middot; ' . $sla_label;
+                    $sla_class = 'bg-warning ticket-sla-warning';
+                }
             }
         }
 

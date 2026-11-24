@@ -48,20 +48,22 @@ $ticket_tasks = array();
 if ($tickets) {
     $page_ticket_ids = implode(',', array_keys($tickets));
 
-    // Latest non-archived reply per ticket, for the Last Response column
+    // Fetch the latest reply for Last Response and the latest public reply for the waiting cue.
     $sql_ticket_replies = mysqli_query($mysqli,
-        "SELECT ticket_reply_ticket_id, ticket_reply_type, ticket_reply_created_at, contact_name, user_name
-        FROM ticket_replies
-        LEFT JOIN users ON ticket_reply_by = user_id
-        LEFT JOIN contacts ON ticket_reply_by = contact_id
-        WHERE ticket_reply_ticket_id IN ($page_ticket_ids)
-        AND ticket_reply_archived_at IS NULL
-        AND ticket_reply_id IN (
-            SELECT MAX(ticket_reply_id) FROM ticket_replies
+        "SELECT latest.ticket_reply_ticket_id, latest.ticket_reply_type, latest.ticket_reply_created_at,
+            public_reply.ticket_reply_type AS last_public_reply_type, contact_name, user_name
+        FROM (
+            SELECT MAX(ticket_reply_id) AS latest_id,
+                MAX(CASE WHEN ticket_reply_type IN ('Client', 'Public') THEN ticket_reply_id END) AS latest_public_id
+            FROM ticket_replies
             WHERE ticket_reply_ticket_id IN ($page_ticket_ids)
             AND ticket_reply_archived_at IS NULL
             GROUP BY ticket_reply_ticket_id
-        )"
+        ) AS replies
+        JOIN ticket_replies AS latest ON latest.ticket_reply_id = replies.latest_id
+        LEFT JOIN ticket_replies AS public_reply ON public_reply.ticket_reply_id = replies.latest_public_id
+        LEFT JOIN users ON latest.ticket_reply_by = user_id
+        LEFT JOIN contacts ON latest.ticket_reply_by = contact_id"
     );
     while ($row = mysqli_fetch_assoc($sql_ticket_replies)) {
         $ticket_replies[intval($row['ticket_reply_ticket_id'])] = $row;
@@ -274,7 +276,7 @@ if ($tickets) {
                         $ticket_reply_created_at = "";
                         $ticket_reply_created_at_time_ago = "Never";
                         $ticket_reply_by_display = "";
-                        $ticket_reply_type = "Client"; // Un-replied tickets are waiting on us
+                        $ticket_reply_type = "";
 
                         if (isset($ticket_replies[$ticket_id])) {
                             $reply = $ticket_replies[$ticket_id];
@@ -293,27 +295,28 @@ if ($tickets) {
                         $completed_task_count = isset($ticket_tasks[$ticket_id]) ? intval($ticket_tasks[$ticket_id]['completed_count']) : 0;
                         $tasks_completed_percent = $task_count ? round(($completed_task_count / $task_count) * 100) : 0;
 
-                        /*
-                         * Row highlighting, in priority order. The title explains why the
-                         * row is coloured - previously you just got a red row with no
-                         * indication of which of several rules had fired.
-                         */
+                        // Only public correspondence changes who owes the next reply.
+                        $waiting_on_us = $ticket_is_open && ($ticket_replies[$ticket_id]['last_public_reply_type'] ?? 'Client') === 'Client';
                         $row_class = '';
-                        $row_title = '';
+                        $row_labels = [];
                         if ($ticket_is_open && $ticket_sla_alert_stage == 2) {
                             $row_class = 'table-danger';
-                            $row_title = 'SLA breached';
+                            $row_labels[] = 'SLA breached';
                         } elseif ($ticket_is_open && $ticket_sla_alert_stage == 1) {
+                            $row_class = 'table-warning ticket-sla-at-risk';
+                            $row_labels[] = 'SLA at risk';
+                        } elseif ($waiting_on_us) {
                             $row_class = 'table-warning';
-                            $row_title = 'SLA at risk';
-                        } elseif ($ticket_is_open && $ticket_reply_type == "Client") {
-                            $row_class = 'table-warning';
-                            $row_title = 'Waiting on a reply from us';
+                        }
+                        if ($waiting_on_us) {
+                            $row_class .= ' ticket-waiting-on-us';
+                            $row_labels[] = 'Waiting on a reply from us';
                         }
                         if ($ticket_is_open && $ticket_reply_created_at_time_ago == "Never") {
                             $row_class .= ' fw-bold';
-                            $row_title = $row_title ? $row_title . ', not yet replied to' : 'Not yet replied to';
+                            $row_labels[] = empty($row_labels) ? 'Not yet replied to' : 'not yet replied to';
                         }
+                        $row_title = implode(', ', $row_labels);
 
                         ?>
 
@@ -413,7 +416,7 @@ if ($tickets) {
                                     } elseif ($ticket_sla_alert_stage == 2) {
                                         echo "<span class='badge rounded-pill bg-danger p-2'><i class='fas fa-fw fa-stopwatch'></i> Breached</span>";
                                     } elseif ($ticket_sla_alert_stage == 1) {
-                                        echo "<span class='badge rounded-pill bg-warning p-2'><i class='fas fa-fw fa-stopwatch'></i> At risk</span>";
+                                        echo "<span class='badge rounded-pill bg-warning ticket-sla-warning p-2'><i class='fas fa-fw fa-stopwatch'></i> At risk</span>";
                                     } elseif (!$ticket_is_open) {
                                         $sla_met = intval($row['ticket_response_sla_met'] ?? 0) && (is_null($row['ticket_resolution_due_at']) || intval($row['ticket_resolution_sla_met'] ?? 0));
                                         echo $sla_met ? "<span class='badge rounded-pill bg-success p-2'>Met</span>" : "<span class='text-muted'>-</span>";

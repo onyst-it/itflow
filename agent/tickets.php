@@ -560,7 +560,7 @@ if ($view == 'kanban') {
 
 ?>
 
-<script src="../js/bulk_actions.js"></script>
+<script src="../js/bulk_actions.js?v=ticket-list-1"></script>
 
 <?php
 require_once "../includes/footer.php";

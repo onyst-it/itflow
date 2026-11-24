@@ -69,8 +69,16 @@
 }
 
 .ticket-bulk-toggle {
-    width: 2.6rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    gap: .125rem;
     font-variant-numeric: tabular-nums;
+}
+
+.ticket-bulk-toggle::after {
+    margin: 0;
 }
 
 .text-sm .ticket-list-table .ticket-bulk-toggle {
