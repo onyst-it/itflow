@@ -12,7 +12,7 @@ $contacts = mysqli_query($mysqli, "SELECT * FROM contacts WHERE contact_vendor_i
         <?php if ($can_edit) { ?><button class="btn btn-primary ajax-modal" data-modal-url="modals/vendor/vendor_contact_edit.php?vendor_id=<?= $vendor_id ?>"><i class="fas fa-plus me-2"></i>New Contact</button><?php } ?>
     </div>
     <div class="card-body">
-        <p>These contacts can open tickets by email and receive ticket replies. <a href="vendors.php<?= $client_id ? '?client_id='.$client_id : '' ?>">Back to Vendors</a></p>
+        <p>These contacts can open tickets by email and receive ticket replies. <a href="<?= $client_id ? 'vendors.php?client_id=' . $client_id : 'clients.php?view=vendors' ?>">Back to Vendors</a></p>
         <div class="table-responsive"><table class="table table-hover"><thead><tr><th>Name</th><th>Title</th><th>Email</th><th>Phone</th><th>Actions</th></tr></thead><tbody>
         <?php while ($contact = mysqli_fetch_assoc($contacts)) { $id = intval($contact['contact_id']); $archived = !empty($contact['contact_archived_at']); ?>
             <tr class="<?= $archived ? 'text-muted' : '' ?>">

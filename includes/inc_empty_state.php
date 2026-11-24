@@ -38,7 +38,8 @@ if (!isset($num_rows) || intval($num_rows[0]) > 0) {
  * "no invoices matching the current filters" and offer a Clear filters link
  * that quietly drops them out of the client entirely.
  */
-$empty_state_ignored_params = array('page', 'sort', 'order', 'canned_date', 'show_column', 'client_id');
+$empty_state_scope = ($empty_state_scope ?? []) + (isset($_GET['client_id']) ? ['client_id' => intval($_GET['client_id'])] : []);
+$empty_state_ignored_params = array_merge(['page', 'sort', 'order', 'canned_date', 'show_column'], array_keys($empty_state_scope));
 
 $empty_state_filtered = false;
 foreach ($_GET as $empty_state_key => $empty_state_value) {
@@ -51,7 +52,11 @@ foreach ($_GET as $empty_state_key => $empty_state_value) {
     }
 }
 
-$empty_state_thing = strtolower($page_title ?? 'records');
+$empty_state_thing = strtolower($empty_state_label ?? $page_title ?? 'records');
+$empty_state_clear_url = strtok($_SERVER['REQUEST_URI'], '?');
+if ($empty_state_scope) {
+    $empty_state_clear_url .= '?' . http_build_query($empty_state_scope);
+}
 
 ?>
 
@@ -61,8 +66,7 @@ $empty_state_thing = strtolower($page_title ?? 'records');
         <i class="fa fa-4x fa-filter mb-3 d-block" aria-hidden="true"></i>
         <h6>No <?= escapeHtml($empty_state_thing) ?> match the current filters.</h6>
         <p class="small mb-3">Try widening the date range or clearing the search.</p>
-        <?php /* keep the client scope, drop everything else */ ?>
-        <a href="<?= escapeHtml(strtok($_SERVER['REQUEST_URI'], '?') . (isset($_GET['client_id']) ? '?client_id=' . intval($_GET['client_id']) : '')) ?>" class="btn btn-sm btn-outline-secondary">
+        <a href="<?= escapeHtml($empty_state_clear_url) ?>" class="btn btn-sm btn-outline-secondary">
             <i class="fa fa-fw fa-times me-2" aria-hidden="true"></i>Clear filters
         </a>
 

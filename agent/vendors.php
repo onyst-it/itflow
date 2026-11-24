@@ -1,11 +1,17 @@
 <?php
 
+$in_directory = ($directory_view ?? '') === 'vendors';
+if (!$in_directory && !isset($_GET['client_id'])) {
+    header('Location: clients.php?' . http_build_query(['view' => 'vendors'] + $_GET));
+    exit;
+}
+
 // Default Column Sortby Filter
 $sort = "vendor_name";
 $order = "ASC";
 
-// If client_id is in URI then show client Side Bar and client header
-if (isset($_GET['client_id'])) {
+// The main directory shows global vendors. Client-specific links use the client layout.
+if (!$in_directory) {
     require_once "includes/inc_all_client.php";
     $client_query = "AND vendor_client_id = $client_id";
     $client_url = "client_id=$client_id&";
@@ -13,6 +19,8 @@ if (isset($_GET['client_id'])) {
     require_once "includes/inc_all.php";
     $client_query = "AND vendor_client_id = 0";
     $client_url = '';
+    $empty_state_label = 'vendors';
+    $empty_state_scope = ['view' => 'vendors'];
 }
 
 $sql = mysqli_query(
@@ -63,10 +71,12 @@ $num_rows = mysqli_fetch_row(mysqli_query($mysqli, "SELECT FOUND_ROWS()"));
     </div>
     <div class="card-header py-3">
         <form autocomplete="off">
-            <?php if ($client_url) { ?>
+            <?php if ($in_directory) { ?>
+                <input type="hidden" name="view" value="vendors">
+            <?php } else { ?>
                 <input type="hidden" name="client_id" value="<?= $client_id ?>">
             <?php } ?>
-            <input type="hidden" name="archived" value="<?= $archived ?>">
+            <?php if ($archived) { ?><input type="hidden" name="archived" value="1"><?php } ?>
             <div class="row g-2 align-items-center">
 
                 <div class="col-md-4">
@@ -77,8 +87,16 @@ $num_rows = mysqli_fetch_row(mysqli_query($mysqli, "SELECT FOUND_ROWS()"));
                 </div>
 
                 <div class="col-md-8">
-                    <div class="btn-group float-end">
-                        <a href="?<?= "$client_url" ?>archived=<?php if($archived == 1){ echo 0; } else { echo 1; } ?>"
+                    <div class="btn-toolbar justify-content-md-end">
+                        <?php if ($in_directory) { require __DIR__ . '/includes/directory_views.php'; } ?>
+                        <?php
+                        $vendor_archive_params = $_GET;
+                        unset($vendor_archive_params['page'], $vendor_archive_params['archived']);
+                        if (!$archived) {
+                            $vendor_archive_params['archived'] = 1;
+                        }
+                        ?>
+                        <a href="?<?= escapeHtml(http_build_query($vendor_archive_params)) ?>"
                             class="btn btn-<?php if($archived == 1){ echo "primary"; } else { echo "default"; } ?>">
                             <i class="fa fa-fw fa-archive me-2"></i>Archived
                         </a>

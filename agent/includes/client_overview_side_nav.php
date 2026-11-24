@@ -36,7 +36,7 @@ $num_software = $row['num'];
     <div class="sidebar-brand">
         <a class="brand-link" href="clients.php">
             <i class="fas fa-arrow-left me-2"></i>
-            <span class="brand-text h6 mb-0">Back | <strong>All Client Docs</strong></span>
+            <span class="brand-text h6 mb-0">Back | <strong>More</strong></span>
         </a>
     </div>
 

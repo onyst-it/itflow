@@ -9,7 +9,8 @@
      * bounced off, and costs no query - the permission arrays are already in the session.
      */
     $brand_link = "/agent/dashboard.php";
-    if (!empty($config_internal_client_id) && lookupUserPermission("module_client") >= 1 && hasClientAccess($config_internal_client_id)) {
+    $directory_client_access = lookupUserPermission('module_client') >= 1;
+    if (!empty($config_internal_client_id) && $directory_client_access && hasClientAccess($config_internal_client_id)) {
         $brand_link = "/agent/client_overview.php?client_id=" . intval($config_internal_client_id);
     }
     ?>
@@ -32,33 +33,26 @@
                         <p>Dashboard</p>
                     </a>
                 </li>
-                <?php if (lookupUserPermission("module_client") >= 1) { ?>
-                    <li class="nav-item">
-                        <a href="/agent/clients.php" class="nav-link <?php if (basename($_SERVER["PHP_SELF"]) == "clients.php") { echo "active"; } ?>">
-                            <i class="nav-icon fas fa-users"></i>
-                            <p>
-                                Clients
-                                <?php if ($num_active_clients) { ?>
-                                    <span class="right badge text-light" data-bs-toggle="tooltip" title="Active Clients"><?= $num_active_clients ?></span>
-                                <?php } ?>
-                            </p>
-                        </a>
-                    </li>
+                <li class="nav-item">
+                    <a href="/agent/clients.php<?= $directory_client_access ? '' : '?view=vendors' ?>" class="nav-link <?php if (in_array(basename($_SERVER["PHP_SELF"]), ['clients.php', 'vendor_contacts.php'], true)) { echo "active"; } ?>">
+                        <i class="nav-icon fas fa-users"></i>
+                        <p>
+                            <?= $directory_client_access ? 'Clients / Vendors' : 'Vendors' ?>
+                            <?php if ($directory_client_access && $num_active_clients) { ?>
+                                <span class="right badge text-light" data-bs-toggle="tooltip" title="Active Clients"><?= $num_active_clients ?></span>
+                            <?php } ?>
+                        </p>
+                    </a>
+                </li>
+                <?php if ($directory_client_access) { ?>
                     <li class="nav-item">
                         <a href="/agent/contacts.php" class="nav-link">
                             <i class="fas fa-layer-group nav-icon"></i>
-                            <p>All Client Docs</p>
+                            <p>More</p>
                             <i class="fas fa-angle-right nav-icon float-end"></i>
                         </a>
                     </li>
                 <?php } ?>
-
-                <li class="nav-item">
-                    <a href="/agent/vendors.php" class="nav-link <?php if (basename($_SERVER["PHP_SELF"]) == "vendors.php") { echo "active"; } ?>">
-                        <i class="nav-icon fas fa-building"></i>
-                        <p>Vendors</p>
-                    </a>
-                </li>
 
                 <li class="nav-item">
                     <a href="/agent/calendar.php" class="nav-link <?php if (basename($_SERVER["PHP_SELF"]) == "calendar.php") { echo "active"; } ?>">

@@ -1,5 +1,11 @@
 <?php
 
+if (($_GET['view'] ?? '') === 'vendors') {
+    $directory_view = 'vendors';
+    require __DIR__ . '/vendors.php';
+    return;
+}
+
 // Default Column Sortby/Order Filter
 $sort = "client_accessed_at";
 $order = "DESC";
@@ -17,6 +23,8 @@ if (isset($_GET['leads']) && $_GET['leads'] == 1) {
     $leads_filter = 0;
     $leads_query = "AND client_lead = 0";
 }
+
+$directory_view = $leads_filter ? 'leads' : 'clients';
 
 // Tags Filter
 if (isset($_GET['tags']) && is_array($_GET['tags']) && !empty($_GET['tags'])) {
@@ -120,10 +128,7 @@ $num_rows = mysqli_fetch_row(mysqli_query($mysqli, "SELECT FOUND_ROWS()"));
                 </div>
                 <div class="col-md-7">
                     <div class="btn-toolbar justify-content-md-end">
-                        <div class="btn-group me-2">
-                            <a href="?leads=0" class="btn btn-<?php if ($leads_filter == 0){ echo "primary"; } else { echo "default"; } ?>" title="Clients"><i class="fa fa-fw fa-user-friends"></i><span class="d-none d-sm-inline ms-2">Clients</span></a>
-                            <a href="?leads=1" class="btn btn-<?php if ($leads_filter == 1){ echo "primary"; } else { echo "default"; } ?>"><i class="fa fa-fw fa-bullhorn"></i><span class="d-none d-sm-inline ms-2">Leads</span></a>
-                        </div>
+                        <?php require __DIR__ . '/includes/directory_views.php'; ?>
 
                         <div class="btn-group">
                             <a href="?<?= $url_query_strings_sort ?>&archived=<?php if($archived == 1){ echo 0; } else { echo 1; } ?>"
