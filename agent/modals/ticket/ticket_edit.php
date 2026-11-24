@@ -54,7 +54,7 @@ ob_start();
     <h5 class="modal-title"><i class="fa fa-fw fa-life-ring me-2"></i>Ticket: <strong><?= "$ticket_prefix$ticket_number" ?></strong> - <?= $client_name ?></h5>
     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
 </div>
-<form action="post.php" method="post" autocomplete="off">
+<form action="post.php" method="post" autocomplete="off" data-vendor-ticket-client="<?= $client_id ?>">
     <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
     <input type="hidden" name="ticket_id" value="<?= $ticket_id ?>">
 
@@ -196,7 +196,7 @@ ob_start();
                         <select class="form-select select2" name="contact_id">
                             <option value="0">No One</option>
                             <?php
-                            $sql_client_contacts_select = mysqli_query($mysqli, "SELECT contact_id, contact_name, contact_title, contact_primary, contact_technical FROM contacts WHERE contact_client_id = $client_id AND contact_archived_at IS NULL ORDER BY contact_primary DESC, contact_technical DESC, contact_name ASC");
+                            $sql_client_contacts_select = mysqli_query($mysqli, "SELECT contact_id, contact_name, contact_title, contact_primary, contact_technical FROM contacts WHERE " . onystTicketContactScope($client_id, $vendor_id) . " AND contact_archived_at IS NULL ORDER BY contact_primary DESC, contact_technical DESC, contact_name ASC");
                             while ($row = mysqli_fetch_assoc($sql_client_contacts_select)) {
                                 $contact_id_select = intval($row['contact_id']);
                                 $contact_name_select = escapeHtml($row['contact_name']);
@@ -321,7 +321,7 @@ ob_start();
                                     <option value="0">- None -</option>
                                     <?php
 
-                                    $sql_vendors = mysqli_query($mysqli, "SELECT vendor_id, vendor_name FROM vendors WHERE vendor_client_id = $client_id AND vendor_archived_at IS NULL ORDER BY vendor_name ASC");
+                                    $sql_vendors = mysqli_query($mysqli, "SELECT vendor_id, vendor_name FROM vendors WHERE vendor_client_id IN (0,$client_id) AND vendor_archived_at IS NULL ORDER BY vendor_name ASC");
                                     while ($row = mysqli_fetch_assoc($sql_vendors)) {
                                         $vendor_id_select = intval($row['vendor_id']);
                                         $vendor_name_select = escapeHtml($row['vendor_name']);
@@ -385,4 +385,5 @@ ob_start();
 </form>
 
 <?php
+echo '<script src="/agent/js/ticket_vendor_contacts.js"></script>';
 require_once '../../../includes/modal_footer.php';

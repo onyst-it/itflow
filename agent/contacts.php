@@ -24,10 +24,10 @@ if (isset($_GET['client_id'])) {
     // Overide Filter Header Archived
     if (isset($_GET['archived']) && $_GET['archived'] == 1) {
         $archived = 1;
-        $archive_query = "(client_archived_at IS NOT NULL OR contact_archived_at IS NOT NULL)";
+        $archive_query = "(client_archived_at IS NOT NULL OR contact_archived_at IS NOT NULL OR vendor_archived_at IS NOT NULL)";
     } else {
         $archived = 0;
-        $archive_query = "(client_archived_at IS NULL AND contact_archived_at IS NULL)";
+        $archive_query = "(client_archived_at IS NULL AND contact_archived_at IS NULL AND vendor_archived_at IS NULL)";
     }
 }
 
@@ -68,16 +68,19 @@ if ($client_url && isset($_GET['location']) && !empty($_GET['location'])) {
     $location_filter = 0;
 }
 
-$sql = mysqli_query($mysqli, "SELECT SQL_CALC_FOUND_ROWS contacts.*, clients.*, locations.*, users.*, GROUP_CONCAT(tags.tag_name) FROM contacts
+$sql = mysqli_query($mysqli, "SELECT SQL_CALC_FOUND_ROWS contacts.*, clients.*, locations.*, users.*, vendors.vendor_name,vendors.vendor_client_id, GROUP_CONCAT(tags.tag_name) FROM contacts
+    LEFT JOIN vendors ON vendors.vendor_id=contacts.contact_vendor_id
     LEFT JOIN clients ON client_id = contact_client_id
     LEFT JOIN locations ON location_id = contact_location_id
     LEFT JOIN users ON user_id = contact_user_id
     LEFT JOIN contact_tags ON contact_tags.contact_id = contacts.contact_id
     LEFT JOIN tags ON tags.tag_id = contact_tags.tag_id
     WHERE $archive_query
+    AND (contacts.contact_vendor_id=0 OR vendors.vendor_id IS NOT NULL)
+    AND (contacts.contact_vendor_id=0 OR vendors.vendor_client_id>0 OR " . (lookupUserPermission('module_financial') >= 1 ? '1=1' : '0=1') . ")
     $tag_query
-    AND (contact_name LIKE '%$q%' OR contact_title LIKE '%$q%' OR location_name LIKE '%$q%'  OR contact_email LIKE '%$q%' OR contact_department LIKE '%$q%' OR contact_phone LIKE '%$phone_query%' OR contact_extension LIKE '%$q%' OR contact_mobile LIKE '%$phone_query%' OR tag_name LIKE '%$q%' OR client_name LIKE '%$q%')
-    " . clientScopeSql('contact_client_id') . "
+    AND (contact_name LIKE '%$q%' OR contact_title LIKE '%$q%' OR location_name LIKE '%$q%'  OR contact_email LIKE '%$q%' OR contact_department LIKE '%$q%' OR contact_phone LIKE '%$phone_query%' OR contact_extension LIKE '%$q%' OR contact_mobile LIKE '%$phone_query%' OR tag_name LIKE '%$q%' OR client_name LIKE '%$q%' OR vendor_name LIKE '%$q%')
+    " . clientScopeSql('(CASE WHEN contact_vendor_id>0 THEN vendor_client_id ELSE contact_client_id END)') . "
     $client_query
     $location_query
     GROUP BY contact_id
@@ -318,7 +321,7 @@ $num_rows = mysqli_fetch_row(mysqli_query($mysqli, "SELECT FOUND_ROWS()"));
                     <?php if (!$client_url) { ?>
                     <th>
                         <a class="text-secondary" href="?<?= $url_query_strings_sort ?>&sort=client_name&order=<?= $disp ?>">
-                            Client <?php if ($sort == 'client_name') { echo $order_icon; } ?>
+                            Client / Vendor <?php if ($sort == 'client_name') { echo $order_icon; } ?>
                         </a>
                     </th>
                     <?php } ?>
@@ -331,6 +334,9 @@ $num_rows = mysqli_fetch_row(mysqli_query($mysqli, "SELECT FOUND_ROWS()"));
                 while ($row = mysqli_fetch_assoc($sql)) {
                     $client_id = intval($row['client_id']);
                     $client_name = escapeHtml($row['client_name']);
+                    $contact_vendor_id = intval($row['contact_vendor_id']);
+                    $contact_vendor_client_id = intval($row['vendor_client_id']);
+                    $contact_vendor_name = escapeHtml($row['vendor_name']);
                     $contact_id = intval($row['contact_id']);
                     $contact_name = escapeHtml($row['contact_name']);
                     $contact_title = escapeHtml($row['contact_title']);
@@ -468,11 +474,11 @@ $num_rows = mysqli_fetch_row(mysqli_query($mysqli, "SELECT FOUND_ROWS()"));
                     <tr>
                         <td class="checkbox-column bg-light border-end">
                             <div class="form-check">
-                                <input class="form-check-input bulk-select" type="checkbox" name="contact_ids[]" value="<?= $contact_id ?>">
+                                <input class="form-check-input <?= $contact_vendor_id ? '' : 'bulk-select' ?>" type="checkbox" <?= $contact_vendor_id ? 'disabled title="Manage vendor contacts from their vendor Contacts page"' : '' ?> name="contact_ids[]" value="<?= $contact_id ?>">
                             </div>
                         </td>
                         <td>
-                            <a class="text-dark" href="contact.php?client_id=<?= $client_id ?>&contact_id=<?= $contact_id ?>">
+                            <a class="text-dark" href="<?= $contact_vendor_id ? 'vendor_contacts.php?vendor_id='.$contact_vendor_id : 'contact.php?client_id='.$client_id.'&contact_id='.$contact_id ?>">
                                 <div class="d-flex">
                                     <?php if ($contact_photo) { ?>
                                         <span class="fa-stack fa-2x me-3 text-center">
@@ -507,7 +513,7 @@ $num_rows = mysqli_fetch_row(mysqli_query($mysqli, "SELECT FOUND_ROWS()"));
                             <?= "$asset_count_display$credential_count_display$software_count_display$ticket_count_display" ?>
                         </td>
                         <?php if (!$client_url) { ?>
-                        <td><a href="contacts.php?client_id=<?= $client_id ?>"><?= $client_name ?></a></td>
+                        <td><?php if ($contact_vendor_id) { ?><a href="vendor_contacts.php?vendor_id=<?= $contact_vendor_id ?>"><?= $contact_vendor_name ?></a> <span class="badge bg-secondary">Vendor</span><?php } else { ?><a href="contacts.php?client_id=<?= $client_id ?>"><?= $client_name ?></a><?php } ?></td>
                         <?php } ?>
                         <td>
                             <div class="dropdown dropstart text-center">
@@ -515,6 +521,12 @@ $num_rows = mysqli_fetch_row(mysqli_query($mysqli, "SELECT FOUND_ROWS()"));
                                     <i class="fas fa-ellipsis-h"></i>
                                 </button>
                                 <div class="dropdown-menu">
+                                <?php if ($contact_vendor_id) { ?>
+                                    <a class="dropdown-item" href="vendor_contacts.php?vendor_id=<?= $contact_vendor_id ?>">Vendor Contacts</a>
+                                    <?php if (lookupUserPermission($contact_vendor_client_id ? 'module_client' : 'module_financial') >= 2 && !$contact_archived_at) { ?>
+                                        <a class="dropdown-item ajax-modal" href="#" data-modal-url="modals/vendor/vendor_contact_edit.php?vendor_id=<?= $contact_vendor_id ?>&contact_id=<?= $contact_id ?>">Edit</a>
+                                    <?php } ?>
+                                <?php } else { ?>
                                     <a class="dropdown-item" href="contact.php?<?= $client_url ?>contact_id=<?= $contact_id ?>">
                                         <i class="fas fa-fw fa-eye me-2"></i>Details
                                     </a>
@@ -548,6 +560,7 @@ $num_rows = mysqli_fetch_row(mysqli_query($mysqli, "SELECT FOUND_ROWS()"));
                                         </a>
                                         <?php } ?>
                                     <?php } ?>
+                                <?php } ?>
                                 </div>
                             </div>
                         </td>

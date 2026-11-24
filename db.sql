@@ -863,7 +863,8 @@ CREATE TABLE `contacts` (
   `contact_department` varchar(200) DEFAULT NULL,
   `contact_client_id` int(11) NOT NULL DEFAULT 0,
   PRIMARY KEY (`contact_id`),
-  KEY `contact_client_id` (`contact_client_id`,`contact_archived_at`)
+  KEY `contact_client_id` (`contact_client_id`,`contact_archived_at`),
+  KEY `contact_vendor_active_email` (`contact_vendor_id`,`contact_archived_at`,`contact_email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -2974,7 +2975,8 @@ CREATE TABLE `tickets` (
   PRIMARY KEY (`ticket_id`),
   KEY `ticket_response_due_at` (`ticket_response_due_at`),
   KEY `ticket_resolution_due_at` (`ticket_resolution_due_at`),
-  KEY `ticket_client_id` (`ticket_client_id`,`ticket_archived_at`)
+  KEY `ticket_client_id` (`ticket_client_id`,`ticket_archived_at`),
+  KEY `ticket_vendor_active` (`ticket_vendor_id`,`ticket_resolved_at`,`ticket_created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

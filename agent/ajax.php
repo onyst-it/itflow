@@ -11,6 +11,15 @@ require_once "../functions.php";
 require_once "../includes/check_login.php";
 require_once "../libs/totp/totp.php";
 
+if (isset($_GET['onyst_party_search'])) {
+    $context = ($_GET['context'] ?? '') === 'ticket' ? 'ticket' : 'contact';
+    if ($context === 'contact' && lookupUserPermission('module_client') < 2 && lookupUserPermission('module_financial') < 2) {
+        http_response_code(403); echo json_encode(['parties'=>[]]); exit;
+    }
+    echo json_encode(['parties'=>onystPartySearch((string)($_GET['q'] ?? ''), $context)]);
+    exit;
+}
+
 /*
  * Fetches SSL certificates from remote hosts & returns the relevant info (issuer, expiry, public key)
  */
@@ -465,29 +474,17 @@ if (isset($_GET['get_document_content'])) {
  * Returns ordered list of active contacts for a specified client
  */
 if (isset($_GET['get_client_contacts'])) {
-    enforceUserPermission('module_client');
-
-    $client_id = intval($_GET['client_id']);
-
-    enforceClientAccess();
-
-    $contact_sql = mysqli_query(
-        $mysqli,
-        "SELECT contact_id, contact_name, contact_title, contact_email, contact_primary, contact_important, contact_technical FROM contacts
-        LEFT JOIN clients on contact_client_id = client_id
-        WHERE contacts.contact_archived_at IS NULL AND contact_client_id = $client_id
-        " . clientScopeSql('contact_client_id') . "
-        ORDER BY contact_primary DESC, contact_technical DESC, contact_important DESC, contact_name"
-    );
-
-    // Always return the key, so a client with none gives [] rather than null
-    $response['contacts'] = [];
-
-    while ($row = mysqli_fetch_assoc($contact_sql)) {
-        $response['contacts'][] = $row;
-    }
-
-    echo json_encode($response);
+    enforceUserPermission('module_support');
+    $client_id = intval($_GET['client_id'] ?? 0);
+    $vendor_id = intval($_GET['vendor_id'] ?? 0);
+    if ($client_id) enforceClientAccess($client_id);
+    onystRequireTicketContact($client_id, $vendor_id, 0);
+    $scope = onystTicketContactScope($client_id, $vendor_id);
+    $query = mysqli_query($mysqli, "SELECT c.contact_id,c.contact_name,c.contact_title,c.contact_email,c.contact_primary,c.contact_important,c.contact_technical,v.vendor_name AS contact_owner_name
+        FROM contacts c LEFT JOIN vendors v ON v.vendor_id=c.contact_vendor_id
+        WHERE c.contact_archived_at IS NULL AND $scope ORDER BY c.contact_vendor_id<>0 DESC,c.contact_primary DESC,c.contact_name");
+    echo json_encode(['contacts'=>mysqli_fetch_all($query, MYSQLI_ASSOC)]);
+    exit;
 }
 
 /*
@@ -553,29 +550,12 @@ if (isset($_GET['get_client_locations'])) {
  * Returns ordered list of vendors for a specified client
  */
 if (isset($_GET['get_client_vendors'])) {
-    enforceUserPermission('module_client');
-
-    $client_id = intval($_GET['client_id']);
-
-    enforceClientAccess();
-
-    $vendors_sql = mysqli_query(
-        $mysqli,
-        "SELECT vendor_id, vendor_name FROM vendors
-        LEFT JOIN clients on vendor_client_id = client_id
-        WHERE vendors.vendor_archived_at IS NULL AND vendor_client_id = $client_id
-        " . clientScopeSql('vendor_client_id') . "
-        ORDER BY vendor_name ASC"
-    );
-
-    // Always return the key, so a client with none gives [] rather than null
-    $response['vendors'] = [];
-
-    while ($row = mysqli_fetch_assoc($vendors_sql)) {
-        $response['vendors'][] = $row;
-    }
-
-    echo json_encode($response);
+    enforceUserPermission('module_support');
+    $client_id = intval($_GET['client_id'] ?? 0);
+    if ($client_id) enforceClientAccess($client_id);
+    $query = mysqli_query($mysqli, "SELECT vendor_id,vendor_name FROM vendors WHERE vendor_archived_at IS NULL AND vendor_client_id IN (0,$client_id) ORDER BY vendor_name");
+    echo json_encode(['vendors'=>mysqli_fetch_all($query, MYSQLI_ASSOC)]);
+    exit;
 }
 
 /*

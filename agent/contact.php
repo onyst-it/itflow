@@ -12,6 +12,13 @@ if (isset($_GET['client_id'])) {
 }
 
 // Perms
+$onyst_contact_id = intval($_GET['contact_id'] ?? 0);
+$onyst_vendor_id = intval(getFieldById('contacts', $onyst_contact_id, 'contact_vendor_id'));
+if ($onyst_vendor_id) {
+    onystEnforceVendorAccess($onyst_vendor_id);
+    redirect('vendor_contacts.php?vendor_id=' . $onyst_vendor_id);
+}
+
 enforceUserPermission('module_client');
 
 if (isset($_GET['contact_id'])) {

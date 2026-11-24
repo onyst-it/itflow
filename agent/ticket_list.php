@@ -264,7 +264,7 @@ if ($tickets) {
                         if (empty($contact_name)) {
                             $contact_display = "<span class='text-muted'>-</span>";
                         } else {
-                            $contact_display = "<a href='contact.php?client_id=$client_id&contact_id=$contact_id'>$contact_name</a>";
+                            $contact_display = !empty($row['contact_vendor_id']) ? "<a href='vendor_contacts.php?vendor_id=" . intval($row['contact_vendor_id']) . "'>$contact_name (Vendor)</a>" : "<a href='contact.php?client_id=$client_id&contact_id=$contact_id'>$contact_name</a>";
                         }
 
                         $ticket_invoice_id = intval($row['ticket_invoice_id']);
@@ -356,7 +356,7 @@ if ($tickets) {
                                         <div><a href="tickets.php?client_id=<?= $client_id ?>"><strong><?= $client_name ?></strong></a></div>
                                     <?php } else { ?>
                                         <!-- Tickets with no client rendered an empty bold link to client_id=0 -->
-                                        <div class="text-muted">No client</div>
+                                        <div class="text-muted"><?= !empty($row['vendor_name']) ? 'Vendor: ' . escapeHtml($row['vendor_name']) : 'No client' ?></div>
                                     <?php } ?>
                                 <?php } ?>
                                 <div><?= $contact_display ?></div>

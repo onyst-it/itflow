@@ -244,6 +244,7 @@ $num_rows = mysqli_fetch_row(mysqli_query($mysqli, "SELECT FOUND_ROWS()"));
                                     <i class="fas fa-ellipsis-h"></i>
                                 </button>
                                 <div class="dropdown-menu">
+                                    <a class="dropdown-item" href="vendor_contacts.php?vendor_id=<?= $vendor_id ?>"><i class="fas fa-users me-2"></i>Contacts</a>
                                     <a class="dropdown-item ajax-modal" href="#" data-modal-url="modals/vendor/vendor_edit.php?id=<?= $vendor_id ?>">
                                         <i class="fas fa-fw fa-edit me-2"></i>Edit
                                     </a>

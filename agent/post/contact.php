@@ -5,6 +5,24 @@
  */
 
 defined('FROM_POST_HANDLER') || die("Direct file access is not allowed");
+if (isset($_POST['edit_contact']) && intval(getFieldById('contacts', intval($_POST['contact_id'] ?? 0), 'contact_vendor_id'))) {
+    validateCSRFToken();
+    flashAlert('Edit vendor contacts from the vendor Contacts page.', 'error');
+    redirect();
+}
+
+if (isset($_POST['add_contact']) && intval($_POST['onyst_vendor_id'] ?? 0)) {
+    validateCSRFToken();
+    $vendor_id = intval($_POST['onyst_vendor_id']);
+    onystEnforceVendorAccess($vendor_id, 2);
+    try {
+        $input = $_POST;
+        $input['primary'] = $_POST['contact_primary'] ?? 0;
+        onystSaveVendorContact($vendor_id, 0, $input);
+        flashAlert('Vendor contact created.');
+    } catch (Throwable $error) { flashAlert(escapeHtml($error->getMessage()), 'error'); }
+    redirect('vendor_contacts.php?vendor_id=' . $vendor_id);
+}
 
 if (isset($_POST['add_contact'])) {
 

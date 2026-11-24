@@ -6,7 +6,7 @@ enforceUserPermission('module_support', 2);
 
 $ticket_id = intval($_GET['id']);
 
-$sql = mysqli_query($mysqli, "SELECT client_name, ticket_client_id, ticket_contact_id, ticket_number, ticket_prefix FROM tickets
+$sql = mysqli_query($mysqli, "SELECT client_name, ticket_client_id, ticket_contact_id, ticket_vendor_id, ticket_number, ticket_prefix FROM tickets
     LEFT JOIN clients ON client_id = ticket_client_id
     WHERE ticket_id = $ticket_id
     LIMIT 1"
@@ -19,8 +19,9 @@ $contact_id = intval($row['ticket_contact_id']);
 $client_name = escapeHtml($row['client_name']);
 $client_id = intval($row['ticket_client_id']);
 
-enforceClientAccess();
+if ($client_id) enforceClientAccess($client_id);
 
+$vendor_id = intval($row['ticket_vendor_id']);
 ob_start();
 
 ?>
@@ -41,7 +42,7 @@ ob_start();
                 <select class="form-select select2" name="contact">
                     <option value="">No One</option>
                     <?php
-                    $sql_client_contacts_select = mysqli_query($mysqli, "SELECT contact_id, contact_name, contact_title, contact_primary, contact_technical FROM contacts WHERE contact_client_id = $client_id AND contact_archived_at IS NULL ORDER BY contact_primary DESC, contact_technical DESC, contact_name ASC");
+                    $sql_client_contacts_select = mysqli_query($mysqli, "SELECT contact_id, contact_name, contact_title, contact_primary, contact_technical FROM contacts WHERE " . onystTicketContactScope($client_id, $vendor_id) . " AND contact_archived_at IS NULL ORDER BY contact_primary DESC, contact_technical DESC, contact_name ASC");
                     while ($row = mysqli_fetch_assoc($sql_client_contacts_select)) {
                         $contact_id_select = intval($row['contact_id']);
                         $contact_name_select = escapeHtml($row['contact_name']);

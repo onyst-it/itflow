@@ -266,7 +266,7 @@ $ticket_select_columns =
     ticket_response_sla_met, ticket_resolution_sla_met,
     ticket_response_sla_alert_stage, ticket_resolution_sla_alert_stage,
     ticket_status_id, ticket_status_name, ticket_status_color, ticket_status_pauses_sla,
-    client_name, contact_id, contact_name, contact_email,
+    client_name, vendor_id, vendor_name, contact_vendor_id, contact_id, contact_name, contact_email,
     user_name, asset_name, category_name";
 
 $ticket_joins =

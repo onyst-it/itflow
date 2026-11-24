@@ -65,29 +65,7 @@ ob_start();
 
             <div class="tab-pane fade show active" id="pills-details">
 
-                <?php if ($client_id) { ?>
-                    <input type="hidden" name="client_id" value="<?= $client_id ?>">
-                <?php } else { ?>
-
-                    <div class="mb-3">
-                        <label>Client <strong class="text-danger">*</strong></label>
-                        <div class="input-group">
-                                <span class="input-group-text"><i class="fa fa-fw fa-user"></i></span>
-                            <select class="form-select select2" name="client_id" required>
-                                <option value="">- Select Client -</option>
-                                <?php
-
-                                while ($row = mysqli_fetch_assoc($sql_client_select)) {
-                                    $client_id_select = intval($row['client_id']);
-                                    $client_name = escapeHtml($row['client_name']); ?>
-                                    <option <?php if ($client_id_select == $client_id) { echo "selected"; } ?> value="<?= $client_id_select ?>"><?= $client_name ?></option>
-
-                                <?php } ?>
-                            </select>
-                        </div>
-                    </div>
-
-                <?php } ?>
+                <?php require __DIR__ . '/../../includes/onyst_contact_owner_picker.php'; ?>
 
                 <div class="mb-3">
                     <label>Name <strong class="text-danger">*</strong> / <span class="text-secondary">Primary Contact</span></label>
@@ -354,4 +332,5 @@ itflowReady(function () {
 
 <?php
 
+echo '<script src="/agent/js/onyst_party_search.js"></script>';
 require_once '../../../includes/modal_footer.php';

@@ -47,3 +47,14 @@ Existing responses are preserved, including edits. Do not seed them automaticall
 Keep `origin` pointed at the ONYST fork. Fetch upstream ITFlow changes into a separate branch, merge them with the ONYST changes, run validation and review the result, then merge into this fork's `master`. A push to `master` is a production deployment. Do not reset the ONYST branch to upstream or use a discard-changes fork sync.
 
 Database-backed saved responses survive application updates independently. Their definitions are also stored here for reproduction. Backups on the live server remain recovery material; committed source in the fork is the authoritative application code.
+
+
+## Vendor contacts and ticket correspondence
+
+Vendor contacts use native contacts.contact_vendor_id with contact_client_id=0 and contact_user_id=0. Vendors do not acquire client identities or portal accounts. Migration 2.7.9 adds owner/email and vendor-ticket indexes and converts active vendors' existing valid email details into contacts without altering client contacts. The backfill is idempotent.
+
+New Ticket has a combined search for clients, vendors, and contacts. Selecting a contact fills its owner and contact ID. A client ticket may use a global vendor, or a vendor belonging to that client, and contact selectors include that vendor's people. New Contact searches clients and vendors as owners. Vendor Contacts supports create/edit/archive/restore and primary selection. All Contacts includes vendor-owned rows with their vendor label and appropriate editing links; client-specific contact pages and bulk client-only operations stay scoped to client contacts.
+
+The inbound parser matches active vendor contacts by exact sender email, assigns ticket_vendor_id and ticket_contact_id, and scopes replies and fuzzy duplicate matching to the identified owner. Addresses shared across owners are left unassigned for manual review; a known ticket's owner provides context for replies. Global vendor mail is not assigned to a guessed client. Existing native contact joins deliver public replies, notifications, and the ONYST resolution choices to vendor contacts with the approved email wrapper unchanged.
+
+Run `php tests/onyst_vendor_contacts_test.php --database` in an isolated checkout to test real migration, ingestion, and queued outbound behavior using connection-local TEMPORARY tables. It never sends SMTP or changes production rows. RunCloud deployments must apply native database migrations with `php scripts/update_cli.php --update_db` after the fast-forward and validation.

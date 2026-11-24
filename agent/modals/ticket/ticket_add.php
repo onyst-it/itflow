@@ -4,6 +4,8 @@ require_once '../../../includes/modal_header.php';
 
 $client_id = intval($_GET['client_id'] ?? 0);
 $contact_id = intval($_GET['contact_id'] ?? 0);
+$vendor_id = intval($_GET['vendor_id'] ?? 0);
+if ($vendor_id) onystRequireTicketContact($client_id, $vendor_id, $contact_id);
 $project_id = intval($_GET['project_id'] ?? 0);
 $asset_id = intval($_GET['asset_id'] ?? 0);
 
@@ -21,9 +23,7 @@ ob_start();
 <form action="post.php" method="post" enctype="multipart/form-data" autocomplete="off">
     <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
     <!-- Hidden/System fields -->
-    <?php if ($client_id) { ?>
-        <input type="hidden" name="client_id" id="clientIdHidden" value="<?= $client_id ?>">
-    <?php } ?>
+
     <input type="hidden" name="billable" value="0">
 
     <div class="modal-body">
@@ -51,24 +51,10 @@ ob_start();
                 <div class="row">
                     <div class="col">
                         <div class="mb-3">
-                            <label>Client <strong class="text-danger">*</strong></label>
+                            <label>Client / Vendor / Contact</label>
                             <div class="input-group">
                                     <span class="input-group-text"><i class="fa fa-fw fa-user"></i></span>
-                                <select class="form-select select2" name="client_id" id="changeClientSelect" required <?php if ($client_id) { echo "disabled"; } ?>>
-                                    <option value="">- Select a Client -</option>
-                                    <?php
-
-                                    // Hide leads from the general list, but include the current client when opening a ticket from a lead page.
-                                    $selectedClientCondition = intval($client_id) > 0 ? " OR client_id = " . intval($client_id) : "";
-                                    $sql = mysqli_query($mysqli, "SELECT client_id, client_name FROM clients WHERE client_archived_at IS NULL AND (client_lead = 0 $selectedClientCondition) " . clientScopeSql('clients.client_id') . " ORDER BY client_name ASC");
-                                    while ($row = mysqli_fetch_assoc($sql)) {
-                                        $client_id_select = intval($row['client_id']);
-                                        $client_name = escapeHtml($row['client_name']); ?>
-
-                                        <option value="<?= $client_id_select ?>" <?php if ($client_id == $client_id_select) {echo "selected"; } ?>><?= $client_name ?></option>
-
-                                    <?php } ?>
-                                </select>
+                                <?php require __DIR__ . '/../../includes/onyst_ticket_party_picker.php'; ?>
                             </div>
                         </div>
                     </div>
@@ -84,6 +70,15 @@ ob_start();
                         </div>
                     </div>
                 </div>
+
+                        <div class="mb-3">
+                            <label>Vendor</label>
+                            <div class="input-group">
+                                    <span class="input-group-text"><i class="fa fa-fw fa-building"></i></span>
+                                <select class="form-select select2" name="vendor_id" id="vendorSelect" data-selected="<?= $vendor_id ?>">
+                                </select>
+                            </div>
+                        </div>
 
                 <?php require_once '../../includes/inc_ticket_template_select.php'; ?>
 
@@ -237,17 +232,6 @@ ob_start();
 
                     <div class="col">
                         <div class="mb-3">
-                            <label>Vendor</label>
-                            <div class="input-group">
-                                    <span class="input-group-text"><i class="fa fa-fw fa-building"></i></span>
-                                <select class="form-select select2" name="vendor_id" id="vendorSelect">
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col">
-                        <div class="mb-3">
                             <label>Vendor Ticket Number</label>
                             <div class="input-group">
                                     <span class="input-group-text"><i class="fa fa-fw fa-tag"></i></span>
@@ -288,6 +272,7 @@ ob_start();
 
 <!-- Ticket Client/Contact JS -->
 <script src="/agent/js/tickets_add_modal.js"></script>
+<script src="/agent/js/onyst_party_search.js"></script>
 
 <script src="/agent/js/ticket_tasks_modal.js"></script>
 

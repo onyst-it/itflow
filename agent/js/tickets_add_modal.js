@@ -13,13 +13,15 @@
 // run and take the whole script with it.
 
 (function () {
+    let contactRequest = 0;
+    let vendorRequest = 0;
 
     const clientSelectDropdown = document.getElementById("changeClientSelect"); // Define client selector
 
     if (clientSelectDropdown) {
 
         // If the client selector is disabled, we must be on a client-specific page instead. Trigger the lists to update.
-        if (clientSelectDropdown.disabled) {
+        if (clientSelectDropdown.disabled || clientSelectDropdown.type === 'hidden') {
 
             let client_id = clientSelectDropdown.value;
 
@@ -47,17 +49,26 @@
 
     }
 
+    const vendorPicker = document.getElementById('vendorSelect');
+    if (vendorPicker) vendorPicker.addEventListener('change', function () {
+        vendorPicker.dataset.selected = vendorPicker.value;
+        const contact = document.getElementById('contactSelect');
+        if (contact) contact.dataset.selected = '0';
+        populateContactsDropdown(clientSelectDropdown ? clientSelectDropdown.value : '0');
+    });
+
     // Populates dropdowns with dynamic content based on the client ID
     //  Called when the client select dropdown is used or if the client select is disabled
     function populateLists(client_id) {
 
-        populateContactsDropdown(client_id);
-
+        populateVendorsDropdown(client_id);
+        if (!Number(client_id)) {
+            ['assetSelect', 'additionalAssetsSelect', 'locationSelect', 'projectSelect'].forEach(function (id) { refreshDropdown(resetDropdown(id, '- None -', '0')); });
+            return;
+        }
         populateAssetsDropdowns(client_id);
 
         populateLocationsDropdown(client_id);
-
-        populateVendorsDropdown(client_id);
 
         populateProjectsDropdown(client_id);
     }
@@ -163,12 +174,15 @@
             return;
         }
 
-        // Send a GET request to ajax.php as ajax.php?get_client_contacts=true&client_id=NUM
+        const request = ++contactRequest;
+        const vendor = document.getElementById('vendorSelect');
+        // One scoped request feeds both pickers.
         itflowGet(
             "ajax.php",
-            {get_client_contacts: 'true', client_id: client_id},
+            {get_client_contacts: 'true', client_id: client_id, vendor_id: vendor ? vendor.value : 0},
             function(data) {
 
+                if (request !== contactRequest) return;
                 // If we get a response from ajax.php, parse it as JSON
                 const response = JSON.parse(data);
 
@@ -183,9 +197,9 @@
 
                 // Populate dropdown
                 contacts.forEach(contact => {
-                    var appendText = "";
+                    var appendText = contact.contact_owner_name ? " — " + contact.contact_owner_name : "";
                     if (contact.contact_title) {
-                        appendText = " - " + contact.contact_title;
+                        appendText += " - " + contact.contact_title;
                     }
                     if (contact.contact_primary == "1") {
                         appendText = appendText + " (Primary)";
@@ -310,14 +324,17 @@
     function populateVendorsDropdown(client_id) {
 
         if (!document.getElementById("vendorSelect")) {
+            populateContactsDropdown(client_id);
             return;
         }
 
+        const request = ++vendorRequest;
         itflowGet(
             "ajax.php",
             {get_client_vendors: 'true', client_id: client_id},
             function(data) {
 
+                if (request !== vendorRequest) return;
                 // If we get a response from ajax.php, parse it as JSON
                 const response = JSON.parse(data);
 
@@ -335,6 +352,7 @@
                 applyPreselection(vendorSelectDropdown);
 
                 refreshDropdown(vendorSelectDropdown);
+                populateContactsDropdown(client_id);
 
             }
         );

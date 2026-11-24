@@ -64,6 +64,7 @@ ob_start();
         </div>
     </div>
 
+    <p><a class="btn btn-primary" href="vendor_contacts.php?vendor_id=<?= $vendor_id ?>"><i class="fas fa-users me-2"></i>Contacts</a></p>
     <!-- Contact Info Card -->
     <div class="card mb-3 shadow-sm rounded">
         <div class="card-body">

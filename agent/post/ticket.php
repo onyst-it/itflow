@@ -45,14 +45,16 @@ if (isset($_POST['add_ticket'])) {
         }
     }
 
-    enforceClientAccess();
+    if ($client_id) enforceClientAccess($client_id);
 
     // Add the primary contact as the ticket contact if "Use primary contact" is checked
     if ($use_primary_contact == 1) {
-        $sql = mysqli_query($mysqli, "SELECT contact_id FROM contacts WHERE contact_client_id = $client_id AND contact_primary = 1");
+        $sql = mysqli_query($mysqli, "SELECT contact_id FROM contacts WHERE contact_client_id = $client_id AND contact_vendor_id=0 AND contact_primary = 1");
         $row = mysqli_fetch_assoc($sql);
         $contact_id = intval($row['contact_id']);
     }
+
+    onystRequireTicketContact($client_id, $vendor_id, $contact_id);
 
     // Atomically increment and get the new ticket number
     mysqli_query($mysqli, "
@@ -245,6 +247,8 @@ if (isset($_POST['edit_ticket'])) {
     if ($client_id) {
         enforceClientAccess();
     }
+
+    onystRequireTicketContact($client_id, $vendor_id, $contact_id);
 
     /*
      * The edit modal can change priority and assignment, which the dedicated
@@ -488,6 +492,9 @@ if (isset($_POST['edit_ticket_contact'])) {
     if ($client_id) {
         enforceClientAccess();
     }
+
+    $vendor_id = intval(getFieldById('tickets', $ticket_id, 'ticket_vendor_id'));
+    onystRequireTicketContact($client_id, $vendor_id, $contact_id);
 
     // Update the contact
     mysqli_query($mysqli, "UPDATE tickets SET ticket_contact_id = $contact_id WHERE ticket_id = $ticket_id");
@@ -809,7 +816,11 @@ if (isset($_POST['edit_ticket_vendor'])) {
         enforceClientAccess();
     }
 
-    mysqli_query($mysqli, "UPDATE tickets SET ticket_vendor_id = $vendor_id WHERE ticket_id = $ticket_id");
+    onystRequireTicketContact($client_id, $vendor_id, 0);
+    $contact_id = intval(getFieldById('tickets', $ticket_id, 'ticket_contact_id'));
+    if ($contact_id && intval(getFieldById('contacts', $contact_id, 'contact_vendor_id')) !== 0
+        && intval(getFieldById('contacts', $contact_id, 'contact_vendor_id')) !== $vendor_id) $contact_id = 0;
+    mysqli_query($mysqli, "UPDATE tickets SET ticket_vendor_id=$vendor_id,ticket_contact_id=$contact_id WHERE ticket_id=$ticket_id");
 
     // Get ticket / vendor details for logging
     $sql = mysqli_query($mysqli, "SELECT vendor_name, ticket_prefix, ticket_number, ticket_status_name, ticket_client_id FROM vendors

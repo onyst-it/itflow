@@ -51,6 +51,7 @@ if (isset($_POST['add_vendor_from_template'])) {
     mysqli_query($mysqli,"INSERT INTO vendors SET vendor_name = '$name', vendor_description = '$description', vendor_contact_name = '$contact_name', vendor_phone_country_code = '$phone_country_code', vendor_phone = '$phone', vendor_extension = '$extension', vendor_email = '$email', vendor_website = '$website', vendor_hours = '$hours', vendor_sla = '$sla', vendor_code = '$code', vendor_account_number = '$account_number', vendor_notes = '$notes', vendor_client_id = $client_id, vendor_template_id = $vendor_template_id");
 
     $vendor_id = mysqli_insert_id($mysqli);
+    onystEnsureVendorContact($vendor_id);
 
     logAudit("Vendor", "Create", "$session_name created vendor $name using a template", $client_id, $vendor_id);
 
@@ -81,6 +82,7 @@ if (isset($_POST['add_vendor'])) {
     mysqli_query($mysqli,"INSERT INTO vendors SET vendor_name = '$name', vendor_description = '$description', vendor_contact_name = '$contact_name', vendor_phone_country_code = '$phone_country_code', vendor_phone = '$phone', vendor_extension = '$extension', vendor_email = '$email', vendor_website = '$website', vendor_hours = '$hours', vendor_sla = '$sla', vendor_code = '$code', vendor_account_number = '$account_number', vendor_notes = '$notes', vendor_client_id = $client_id");
 
     $vendor_id = mysqli_insert_id($mysqli);
+    onystEnsureVendorContact($vendor_id);
 
     logAudit("Vendor", "Create", "$session_name created vendor $name", $client_id, $vendor_id);
 
@@ -111,6 +113,8 @@ if (isset($_POST['edit_vendor'])) {
     }
 
     mysqli_query($mysqli,"UPDATE vendors SET vendor_name = '$name', vendor_description = '$description', vendor_contact_name = '$contact_name', vendor_phone_country_code = '$phone_country_code', vendor_phone = '$phone', vendor_extension = '$extension', vendor_email = '$email', vendor_website = '$website', vendor_hours = '$hours', vendor_sla = '$sla', vendor_code = '$code',vendor_account_number = '$account_number', vendor_notes = '$notes', vendor_template_id = $vendor_template_id WHERE vendor_id = $vendor_id");
+
+    onystEnsureVendorContact($vendor_id);
 
     logAudit("Vendor", "Edit", "$session_name edited vendor $name", $client_id, $vendor_id);
 

@@ -2,6 +2,13 @@
 
 require_once '../../../includes/modal_header.php';
 
+$onyst_contact_id = intval($_GET['id'] ?? 0);
+$onyst_vendor_id = intval(getFieldById('contacts', $onyst_contact_id, 'contact_vendor_id'));
+if ($onyst_vendor_id) {
+    onystEnforceVendorAccess($onyst_vendor_id);
+    ob_start(); echo '<div class="modal-body"><a href="vendor_contacts.php?vendor_id=' . $onyst_vendor_id . '">View vendor contacts</a></div>'; require '../../../includes/modal_footer.php';
+}
+
 enforceUserPermission('module_client');
 
 $contact_id = intval($_GET['id']);
