@@ -24,10 +24,10 @@ if (isset($_GET['client_id'])) {
     // Overide Filter Header Archived
     if (isset($_GET['archived']) && $_GET['archived'] == 1) {
         $archived = 1;
-        $archive_query = "(client_archived_at IS NOT NULL OR contact_archived_at IS NOT NULL OR vendor_archived_at IS NOT NULL)";
+        $archive_query = "(client_archived_at IS NOT NULL OR contact_archived_at IS NOT NULL)";
     } else {
         $archived = 0;
-        $archive_query = "(client_archived_at IS NULL AND contact_archived_at IS NULL AND vendor_archived_at IS NULL)";
+        $archive_query = "(client_archived_at IS NULL AND contact_archived_at IS NULL)";
     }
 }
 
@@ -68,6 +68,9 @@ if ($client_url && isset($_GET['location']) && !empty($_GET['location'])) {
     $location_filter = 0;
 }
 
+$vendor_archive_clause = $archived ? ' OR (contact_vendor_id>0 AND vendor_archived_at IS NOT NULL)' : '';
+$vendor_active_clause = $archived ? '' : ' AND (contact_vendor_id=0 OR vendor_archived_at IS NULL)';
+
 $sql = mysqli_query($mysqli, "SELECT SQL_CALC_FOUND_ROWS contacts.*, clients.*, locations.*, users.*, vendors.vendor_name,vendors.vendor_client_id, GROUP_CONCAT(tags.tag_name) FROM contacts
     LEFT JOIN vendors ON vendors.vendor_id=contacts.contact_vendor_id
     LEFT JOIN clients ON client_id = contact_client_id
@@ -75,7 +78,7 @@ $sql = mysqli_query($mysqli, "SELECT SQL_CALC_FOUND_ROWS contacts.*, clients.*, 
     LEFT JOIN users ON user_id = contact_user_id
     LEFT JOIN contact_tags ON contact_tags.contact_id = contacts.contact_id
     LEFT JOIN tags ON tags.tag_id = contact_tags.tag_id
-    WHERE $archive_query
+    WHERE ($archive_query $vendor_archive_clause) $vendor_active_clause
     AND (contacts.contact_vendor_id=0 OR vendors.vendor_id IS NOT NULL)
     AND (contacts.contact_vendor_id=0 OR vendors.vendor_client_id>0 OR " . (lookupUserPermission('module_financial') >= 1 ? '1=1' : '0=1') . ")
     $tag_query
