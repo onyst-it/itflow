@@ -353,7 +353,7 @@ if ($tickets) {
                             </td>
 
                             <!-- Ticket Client / Contact -->
-                            <td>
+                            <td class="ticket-party">
                                 <?php if (!$client_url) { ?>
                                     <?php if ($client_id) { ?>
                                         <div><a href="tickets.php?client_id=<?= $client_id ?>"><strong><?= $client_name ?></strong></a></div>
@@ -362,7 +362,7 @@ if ($tickets) {
                                         <div class="text-muted"><?= !empty($row['vendor_name']) ? 'Vendor: ' . escapeHtml($row['vendor_name']) : 'No client' ?></div>
                                     <?php } ?>
                                 <?php } ?>
-                                <div><?= $contact_display ?></div>
+                                <div class="ticket-contact"><?= $contact_display ?></div>
                             </td>
 
                             <!-- Ticket Billing (if accounting enabled) -->
@@ -447,10 +447,10 @@ if ($tickets) {
                             </td>
 
                             <!-- Ticket Last Response -->
-                            <td>
+                            <td class="ticket-last-response">
                                 <div title="<?= $ticket_reply_created_at ?>"><?= $ticket_reply_created_at_time_ago ?></div>
                                 <?php if ($ticket_reply_by_display) { ?>
-                                    <small class="text-secondary"><?= $ticket_reply_by_display ?><?php if ($ticket_reply_type == "Client") { echo " <i class='fas fa-fw fa-reply text-warning' title='Client replied last'></i>"; } ?></small>
+                                    <small class="d-block text-secondary"><?= $ticket_reply_by_display ?><?php if ($ticket_reply_type == "Client") { echo " <i class='fas fa-fw fa-reply text-warning' title='Client replied last'></i>"; } ?></small>
                                 <?php } ?>
                             </td>
 

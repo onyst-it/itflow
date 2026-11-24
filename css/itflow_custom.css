@@ -85,9 +85,13 @@
     font-size: .75rem !important;
 }
 
+.ticket-list-table :is(.ticket-party, .ticket-last-response, .ticket-created) {
+    line-height: 1.2;
+}
+
+.ticket-contact,
 .ticket-created {
     font-size: .75rem;
-    line-height: 1.2;
 }
 
 .ticket-created .text-secondary {
