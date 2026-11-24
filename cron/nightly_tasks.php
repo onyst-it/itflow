@@ -334,7 +334,7 @@ foreach ($warranty_alert_array as $day) {
 
 // Notify of New Tickets
 // Get Ticket Pending Assignment
-$sql_tickets_pending_assignment = mysqli_query($mysqli,"SELECT ticket_id FROM tickets WHERE ticket_status = 1");
+$sql_tickets_pending_assignment = mysqli_query($mysqli,"SELECT ticket_id FROM tickets WHERE ticket_status = 1 AND COALESCE(ticket_source, '') <> 'Syncro Import'");
 
 $tickets_pending_assignment = mysqli_num_rows($sql_tickets_pending_assignment);
 
@@ -530,6 +530,7 @@ $sql_resolved_tickets_to_close = mysqli_query(
     "SELECT ticket_assigned_to, ticket_client_id, ticket_id, ticket_number, ticket_prefix,
         ticket_status, ticket_subject FROM tickets
     WHERE ticket_status = 4
+    AND COALESCE(ticket_source, '') <> 'Syncro Import'
     AND ticket_updated_at < NOW() - INTERVAL $config_ticket_autoclose_hours HOUR"
 );
 
