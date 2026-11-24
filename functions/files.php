@@ -4,6 +4,32 @@
 // Split from the former monolithic functions.php
 
 
+
+/**
+ * Open the original file bytes for an authenticated staff download.
+ * Encrypted files stay in ITFlow's regular upload and backup paths.
+ */
+function openPrivateTicketAttachment(string $path): ?array
+{
+    $key = backupEncryptionKey();
+    if ($key === '') {
+        return null;
+    }
+    $archive = new ZipArchive();
+    if ($archive->open($path, ZipArchive::RDONLY) !== true) {
+        return null;
+    }
+    $archive->setPassword($key);
+    $entry = $archive->statName('attachment');
+    $stream = $entry ? $archive->getStream('attachment') : false;
+    if ($stream === false) {
+        $archive->close();
+        return null;
+    }
+
+    return [$archive, $stream, $entry['size']];
+}
+
 function removeDirectory($path) {
     if (!file_exists($path)) {
         return;

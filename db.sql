@@ -2807,6 +2807,7 @@ CREATE TABLE `ticket_attachments` (
   `ticket_attachment_created_at` datetime NOT NULL DEFAULT current_timestamp(),
   `ticket_attachment_ticket_id` int(11) NOT NULL,
   `ticket_attachment_reply_id` int(11) DEFAULT NULL,
+  `ticket_attachment_private` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`ticket_attachment_id`),
   KEY `ticket_attachment_reply_id` (`ticket_attachment_reply_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

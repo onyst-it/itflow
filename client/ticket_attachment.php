@@ -27,7 +27,11 @@ if (isset($_GET['action']) && $_GET['action'] == "view") {
 }
 
 // Look up the attachment
-$sql = mysqli_query($mysqli, "SELECT * FROM ticket_attachments WHERE ticket_attachment_id = $attachment_id LIMIT 1");
+$sql = mysqli_query($mysqli, "SELECT a.* FROM ticket_attachments a
+    LEFT JOIN ticket_replies r ON r.ticket_reply_id = a.ticket_attachment_reply_id
+        AND r.ticket_reply_ticket_id = a.ticket_attachment_ticket_id
+    WHERE a.ticket_attachment_id = $attachment_id AND a.ticket_attachment_private = 0
+        AND (a.ticket_attachment_reply_id IS NULL OR r.ticket_reply_type IN ('Public', 'Client')) LIMIT 1");
 
 if (mysqli_num_rows($sql) !== 1) {
     http_response_code(404);
@@ -54,7 +58,7 @@ $uploads_base = realpath(__DIR__ . "/../uploads");
 $file_path = realpath(__DIR__ . "/../uploads/tickets/$ticket_id/$attachment_reference_name");
 
 // Path traversal guard - resolved path must stay inside uploads
-if ($file_path === false || $uploads_base === false || strpos($file_path, $uploads_base) !== 0) {
+if ($file_path === false || $uploads_base === false || strpos($file_path, $uploads_base . DIRECTORY_SEPARATOR) !== 0) {
     http_response_code(404);
     exit("Attachment not found");
 }

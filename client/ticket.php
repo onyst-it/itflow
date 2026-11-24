@@ -55,6 +55,7 @@ if (isset($_GET['id']) && intval($_GET['id'])) {
             $mysqli,
             "SELECT ticket_attachment_id, ticket_attachment_name FROM ticket_attachments
             WHERE ticket_attachment_reply_id IS NULL
+            AND ticket_attachment_private = 0
             AND ticket_attachment_ticket_id = $ticket_id"
         );
 
@@ -303,6 +304,7 @@ if (isset($_GET['id']) && intval($_GET['id'])) {
                 $mysqli,
                 "SELECT ticket_attachment_id, ticket_attachment_name FROM ticket_attachments
                         WHERE ticket_attachment_reply_id = $ticket_reply_id
+                        AND ticket_attachment_private = 0
                         AND ticket_attachment_ticket_id = $ticket_id"
             );
             ?>

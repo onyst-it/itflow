@@ -50,6 +50,7 @@ $client_id = intval($row['ticket_client_id']);
 $attachment_name = $row['ticket_attachment_name'];
 $attachment_name_escaped = escapeSql($row['ticket_attachment_name']);
 $attachment_reference_name = $row['ticket_attachment_reference_name'];
+$private_attachment = (bool) $row['ticket_attachment_private'];
 
 // Enforce client access against the ticket's client if the ticket is assigned to a client
 if ($client_id) {
@@ -61,7 +62,7 @@ $uploads_base = realpath(__DIR__ . "/../uploads");
 $file_path = realpath(__DIR__ . "/../uploads/tickets/$ticket_id/$attachment_reference_name");
 
 // Path traversal guard - resolved path must stay inside uploads
-if ($file_path === false || $uploads_base === false || strpos($file_path, $uploads_base) !== 0) {
+if ($file_path === false || $uploads_base === false || strpos($file_path, $uploads_base . DIRECTORY_SEPARATOR) !== 0) {
     http_response_code(404);
     exit("Attachment not found");
 }
@@ -69,8 +70,25 @@ if ($file_path === false || $uploads_base === false || strpos($file_path, $uploa
 // No MIME column on ticket_attachments - detect from file content.
 // Email attachments are attacker-supplied, so never trust a declared type.
 $finfo = finfo_open(FILEINFO_MIME_TYPE);
-$attachment_mime_type = finfo_file($finfo, $file_path);
+$attachment_size = filesize($file_path);
+if ($private_attachment) {
+    $opened = openPrivateTicketAttachment($file_path);
+    if ($opened === null) {
+        http_response_code(404);
+        exit("Attachment not found");
+    }
+    [$archive, $stream, $attachment_size] = $opened;
+    $first_bytes = fread($stream, 16384);
+    if ($first_bytes === false) {
+        http_response_code(404);
+        exit("Attachment not found");
+    }
+    $attachment_mime_type = finfo_buffer($finfo, $first_bytes);
+} else {
+    $attachment_mime_type = finfo_file($finfo, $file_path);
+}
 finfo_close($finfo);
+$attachment_mime_type = $attachment_mime_type ?: 'application/octet-stream';
 
 // MIME types that are safe to render inline in the browser
 // Everything else (esp. HTML/SVG - stored XSS risk) falls back to download
@@ -87,7 +105,7 @@ $safe_attachment_name = str_replace(array('"', "\r", "\n"), "", basename($attach
 $file_mtime = filemtime($file_path);
 $etag = '"' . md5($file_mtime . filesize($file_path) . $attachment_id) . '"';
 
-header("Cache-Control: private, max-age=3600");
+header($private_attachment ? "Cache-Control: private, no-store" : "Cache-Control: private, max-age=3600");
 header("ETag: $etag");
 header("Last-Modified: " . gmdate("D, d M Y H:i:s", $file_mtime) . " GMT");
 
@@ -107,7 +125,7 @@ if (!$thumb) {
 // Send the file
 header("Content-Type: $attachment_mime_type");
 header("Content-Disposition: $disposition; filename=\"$safe_attachment_name\"");
-header("Content-Length: " . filesize($file_path));
+header("Content-Length: " . $attachment_size);
 header("X-Content-Type-Options: nosniff");
 
 // Clear output buffers so large files stream instead of loading into memory
@@ -115,5 +133,12 @@ while (ob_get_level()) {
     ob_end_clean();
 }
 
-readfile($file_path);
+if ($private_attachment) {
+    echo $first_bytes;
+    fpassthru($stream);
+    fclose($stream);
+    $archive->close();
+} else {
+    readfile($file_path);
+}
 exit;

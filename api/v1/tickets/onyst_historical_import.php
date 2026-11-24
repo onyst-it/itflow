@@ -117,6 +117,7 @@ function onystSyncroImportPreflight(mysqli $db): array
         throw new OnystSyncroImportError('ticket_auto_reply_schema_not_deployed');
     }
     return [
+        'original_attachment_retrieval' => $db->query("SHOW COLUMNS FROM ticket_attachments WHERE Field='ticket_attachment_private'")->num_rows === 1,
         'timezone' => $db->query('SELECT config_timezone FROM settings WHERE company_id=1')->fetch_row()[0],
         'statuses' => $db->query('SELECT ticket_status_id, ticket_status_name FROM ticket_statuses ORDER BY ticket_status_id')->fetch_all(MYSQLI_ASSOC),
     ];
@@ -291,6 +292,117 @@ function onystSyncroImportStatus(mysqli $db): array
     return array_map('intval', $counts) + ['auto_replies' => (int) $autoReplies, 'queued_emails' => (int) $queued];
 }
 
+function onystSyncroImportDownload(string $url, int $size, ?string $md5): array
+{
+    // Syncro signs the original file URL for this S3 bucket. Do not forward Syncro
+    // credentials or follow redirects. Never log the signed URL.
+    if (strlen($url) > 8192 || !preg_match(
+        '~\Ahttps://s3\.amazonaws\.com/attachments\.servably\.com/[^?\s#]+[?][^\s#]+\z~D',
+        $url
+    )) {
+        throw new OnystSyncroImportError('original_attachment_url_unrecognized');
+    }
+    if ($size < 0 || $size > 500 * 1024 * 1024 ||
+        ($md5 !== null && !preg_match('/^[a-f0-9]{32}$/D', $md5))) {
+        throw new OnystSyncroImportError('original_attachment_metadata_invalid');
+    }
+
+    $stream = tmpfile();
+    if ($stream === false) {
+        throw new OnystSyncroImportError('attachment_storage_unavailable');
+    }
+
+    $curl = curl_init($url);
+    $sha = hash_init('sha256');
+    $md = hash_init('md5');
+    $received = 0;
+    curl_setopt_array($curl, [
+        CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
+        CURLOPT_FOLLOWLOCATION => false,
+        CURLOPT_CONNECTTIMEOUT => 5,
+        CURLOPT_TIMEOUT => 14,
+        CURLOPT_MAXFILESIZE => $size,
+        CURLOPT_WRITEFUNCTION => static function ($curl, string $chunk) use ($stream, $size, $sha, $md, &$received): int {
+            $length = strlen($chunk);
+            if ($received + $length > $size || fwrite($stream, $chunk) !== $length) {
+                return 0;
+            }
+            $received += $length;
+            hash_update($sha, $chunk);
+            hash_update($md, $chunk);
+
+            return $length;
+        },
+    ]);
+
+    $downloaded = curl_exec($curl);
+    $http = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+    if ($http !== 200) {
+        fclose($stream);
+        throw new OnystSyncroImportError('original_attachment_download_http_' . $http);
+    }
+    if ($downloaded === false || $received !== $size ||
+        ($md5 !== null && !hash_equals($md5, hash_final($md)))) {
+        fclose($stream);
+        throw new OnystSyncroImportError('original_attachment_bytes_mismatch');
+    }
+
+    rewind($stream);
+    return [$stream, hash_final($sha)];
+}
+
+function onystSyncroImportSaveAttachment(string $path, array $file): void
+{
+    [$name, $stream, $created, $reply, $private, $size, $sha] = $file;
+    if ($private) {
+        $key = backupEncryptionKey();
+        if (!backupSealArchive(['attachment' => stream_get_meta_data($stream)['uri']], $path, $key)) {
+            throw new OnystSyncroImportError('private_attachment_storage_failed');
+        }
+        $opened = openPrivateTicketAttachment($path);
+        if ($opened === null) {
+            throw new OnystSyncroImportError('private_attachment_readback_failed');
+        }
+        [$archive, $saved, $savedSize] = $opened;
+        $hash = hash_init('sha256');
+        $verifiedSize = hash_update_stream($hash, $saved);
+        fclose($saved);
+        $archive->close();
+        $verified = $size === $savedSize && $size === $verifiedSize && hash_equals($sha, hash_final($hash));
+    } else {
+        $saved = fopen($path, 'xb');
+        if ($saved === false) {
+            throw new OnystSyncroImportError('attachment_storage_unavailable');
+        }
+        $savedSize = stream_copy_to_stream($stream, $saved);
+        fclose($saved);
+        $verified = $savedSize === $size && hash_file('sha256', $path) === $sha;
+    }
+    if (!$verified) {
+        throw new OnystSyncroImportError('attachment_readback_mismatch');
+    }
+}
+
+function onystSyncroImportAttachmentAudit(mysqli $db): array
+{
+    $counts = $db->query('SELECT COUNT(*) AS files, COUNT(DISTINCT a.ticket_attachment_ticket_id) AS tickets_with_files,
+        COALESCE(SUM(a.ticket_attachment_private), 0) AS private_files
+        FROM ticket_attachments a JOIN onyst_syncro_ticket_import m ON a.ticket_attachment_ticket_id = m.ticket_id')
+        ->fetch_assoc();
+    $referenceMismatches = $db->execute_query('SELECT COUNT(*) FROM onyst_syncro_ticket_import m
+        LEFT JOIN tickets t ON m.ticket_id = t.ticket_id WHERE m.ticket_id IS NOT NULL AND
+        (t.ticket_id IS NULL OR t.ticket_prefix <> ? OR t.ticket_number <> m.source_number OR t.ticket_source <> ?)',
+        [ONYST_SYNCRO_IMPORT_PREFIX, ONYST_SYNCRO_IMPORT_ORIGIN])->fetch_row()[0];
+    $pendingReasons = $db->query('SELECT COALESCE(last_error,\'never_attempted\') AS reason, COUNT(*) AS tickets
+        FROM onyst_syncro_ticket_import WHERE ticket_id IS NULL GROUP BY last_error ORDER BY tickets DESC')
+        ->fetch_all(MYSQLI_ASSOC);
+
+    return onystSyncroImportStatus($db) + array_map('intval', $counts) + [
+        'reference_mismatches' => (int) $referenceMismatches,
+        'pending_reasons' => $pendingReasons,
+    ];
+}
+
 function onystSyncroImportOne(mysqli $db, array $payload, string $appRoot, bool $preview): array
 {
     $source = $payload['source'] ?? [];
@@ -347,19 +459,52 @@ function onystSyncroImportOne(mysqli $db, array $payload, string $appRoot, bool 
         $replies[$commentId] = [$body, $comment['private'] ? 'Internal' : 'Public', $replyCreated, $replyUpdated];
         $original['replies'][] = ['id' => $commentId, 'created_at' => $comment['created_at'], 'updated_at' => $comment['updated_at'] ?? null];
     }
+    // Confirm the scope before contacting storage for any file. Recheck the same row
+    // under the write lock in case another runner saved it during the downloads.
+    $scope = $db->execute_query('SELECT * FROM onyst_syncro_ticket_import WHERE source_id=?', [$id])->fetch_assoc();
+    if (!$scope || (int) $scope['source_number'] !== $number || (int) $scope['source_customer_id'] !== $customer) {
+        throw new OnystSyncroImportError('ticket_outside_approved_source_scope');
+    }
+    onystSyncroImportCheckOwner($db, $scope);
+
+    $totalSize = 0;
     foreach ($attachments as $file) {
         $fileId = onystSyncroImportId($file['id'] ?? null);
         $replyId = onystSyncroImportId($file['comment_id'] ?? null, true);
         $name = onystSyncroImportText($file['name'] ?? null, 1020);
-        $bytes = is_string($file['base64'] ?? null) ? base64_decode($file['base64'], true) : false;
-        if (isset($attachmentsById[$fileId]) || (bool) $replyId && !isset($replies[$replyId]) ||
+        $size = $file['size'] ?? null;
+        $private = $file['private'] ?? false;
+        if (isset($attachmentsById[$fileId]) || ($replyId && !isset($replies[$replyId])) ||
             $name === '' || mb_strlen($name, 'UTF-8') > 255 || preg_match('/[\/\\\\\x00-\x1f]/', $name) ||
-            $bytes === false || strlen($bytes) !== ($file['size'] ?? null) || strlen($bytes) > 25 * 1024 * 1024) {
+            !is_bool($private) || !is_int($size) || $size < 0 || ($totalSize += $size) > 500 * 1024 * 1024) {
             throw new OnystSyncroImportError('source_attachment_unverified');
         }
+        $private = $private || ($replyId && $replies[$replyId][1] === 'Internal');
         $fileCreated = onystSyncroImportDate($file['created_at'] ?? null, $timezone, true);
-        $attachmentsById[$fileId] = [$name, $bytes, $fileCreated, $replyId];
-        $original['attachments'][] = ['id' => $fileId, 'created_at' => $file['created_at'], 'sha256' => hash('sha256', $bytes)];
+        onystSyncroImportDate($file['updated_at'] ?? null, $timezone);
+        if (isset($file['url'])) {
+            if (!is_string($file['url']) || (isset($file['md5']) && !is_string($file['md5']))) {
+                throw new OnystSyncroImportError('original_attachment_metadata_invalid');
+            }
+            [$stream, $sha] = onystSyncroImportDownload($file['url'], $size, $file['md5'] ?? null);
+        } else {
+            $bytes = is_string($file['base64'] ?? null) ? base64_decode($file['base64'], true) : false;
+            $stream = tmpfile();
+            if ($bytes === false || strlen($bytes) !== $size || $size > 25 * 1024 * 1024 ||
+                $stream === false || fwrite($stream, $bytes) !== $size) {
+                throw new OnystSyncroImportError('source_attachment_unverified');
+            }
+            rewind($stream);
+            $sha = hash('sha256', $bytes);
+        }
+
+        $attachmentsById[$fileId] = [$name, $stream, $fileCreated, $replyId, $private, $size, $sha];
+        $original['attachments'][] = [
+            'id' => $fileId, 'created_at' => $file['created_at'], 'sha256' => $sha,
+        ] + (isset($file['url']) ? [
+            'updated_at' => $file['updated_at'] ?? null, 'name' => $name, 'comment_id' => $replyId ?: null,
+            'private' => $private, 'size' => $size,
+        ] : []);
     }
     $hash = hash('sha256', json_encode([$source, $comments, $original['attachments'] ?? []], JSON_THROW_ON_ERROR));
     $paths = [];
@@ -385,7 +530,8 @@ function onystSyncroImportOne(mysqli $db, array $payload, string $appRoot, bool 
             'result' => $preview ? 'would_import' : 'imported', 'source_id' => $id, 'number' => $number,
             'client_id' => (int) $row['client_id'], 'vendor_id' => (int) $row['vendor_id'], 'contact_id' => (int) $row['contact_id'],
             'created_at' => $created, 'updated_at' => $updated, 'resolved_at' => $resolved, 'closed_at' => $closed,
-            'reply_count' => count($replies), 'attachment_count' => count($attachmentsById), 'auto_reply_scheduled' => false,
+            'reply_count' => count($replies), 'attachment_count' => count($attachmentsById),
+            'attachment_bytes_verified' => true, 'auto_reply_scheduled' => false,
         ];
         if ($preview) {
             $db->rollback();
@@ -429,23 +575,32 @@ function onystSyncroImportOne(mysqli $db, array $payload, string $appRoot, bool 
             }
             $directory = $targetDirectory;
             $insertFile = $db->prepare('INSERT INTO ticket_attachments
-                (ticket_attachment_name,ticket_attachment_reference_name,ticket_attachment_created_at,ticket_attachment_ticket_id,ticket_attachment_reply_id)
-                VALUES (?,?,?,?,?)');
-            foreach ($attachmentsById as [$name, $bytes, $fileCreated, $replyId]) {
+                (ticket_attachment_name,ticket_attachment_reference_name,ticket_attachment_created_at,ticket_attachment_ticket_id,
+                 ticket_attachment_reply_id,ticket_attachment_private) VALUES (?,?,?,?,?,?)');
+            $expectedFiles = [];
+            foreach ($attachmentsById as $file) {
+                [$name, $stream, $fileCreated, $replyId, $private] = $file;
                 $reference = bin2hex(random_bytes(20)) . '.bin';
-                $file = $directory . '/' . $reference;
-                $paths[] = $file;
-                if (file_put_contents($file, $bytes, LOCK_EX) !== strlen($bytes)) {
-                    throw new OnystSyncroImportError('attachment_write_failed');
-                }
-                $insertFile->execute([$name, $reference, $fileCreated, $ticketId, $replyIds[$replyId] ?? null]);
+                $path = $directory . '/' . $reference;
+                $paths[] = $path;
+                onystSyncroImportSaveAttachment($path, $file);
+                $savedReplyId = $replyIds[$replyId] ?? null;
+                $insertFile->execute([$name, $reference, $fileCreated, $ticketId, $savedReplyId, (int) $private]);
+                $expectedFiles[] = [$name, $reference, $fileCreated, $savedReplyId, (int) $private];
+            }
+            $savedFiles = $db->execute_query('SELECT ticket_attachment_name,ticket_attachment_reference_name,
+                ticket_attachment_created_at,ticket_attachment_reply_id,ticket_attachment_private FROM ticket_attachments
+                WHERE ticket_attachment_ticket_id=? ORDER BY ticket_attachment_id', [$ticketId])->fetch_all(MYSQLI_NUM);
+            if ($savedFiles !== $expectedFiles) {
+                throw new OnystSyncroImportError('attachment_metadata_readback_mismatch');
             }
         }
 
-        $stored = $db->execute_query('SELECT ticket_created_at,ticket_updated_at,ticket_resolved_at,ticket_closed_at,
+        $stored = $db->execute_query('SELECT ticket_prefix,ticket_number,ticket_created_at,ticket_updated_at,ticket_resolved_at,ticket_closed_at,ticket_due_at,
             ticket_auto_reply_due_at,ticket_auto_reply_email,ticket_sla_id FROM tickets WHERE ticket_id=?', [$ticketId])->fetch_assoc();
         if (!$stored || $stored['ticket_created_at'] !== $created || $stored['ticket_updated_at'] !== $updated ||
-            $stored['ticket_resolved_at'] !== $resolved || $stored['ticket_closed_at'] !== $closed ||
+            $stored['ticket_resolved_at'] !== $resolved || $stored['ticket_closed_at'] !== $closed || $stored['ticket_due_at'] !== $due ||
+            $stored['ticket_prefix'] !== ONYST_SYNCRO_IMPORT_PREFIX || (int) $stored['ticket_number'] !== $number ||
             $stored['ticket_auto_reply_due_at'] !== null || $stored['ticket_auto_reply_email'] !== null || (int) $stored['ticket_sla_id'] !== 0) {
             throw new OnystSyncroImportError('ticket_history_verification_failed');
         }
@@ -510,6 +665,8 @@ try {
     $action = $_POST['action'] ?? null;
     if ($action === 'status') {
         $response = onystSyncroImportPreflight($mysqli) + onystSyncroImportStatus($mysqli);
+    } elseif ($action === 'attachment_audit') {
+        $response = onystSyncroImportPreflight($mysqli) + onystSyncroImportAttachmentAudit($mysqli);
     } elseif ($action === 'register') {
         onystSyncroImportPreflight($mysqli);
         $response = onystSyncroImportRegister($mysqli, (string) ($_POST['phase'] ?? ''), $_POST['tickets'] ?? []);
