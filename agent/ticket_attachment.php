@@ -101,7 +101,7 @@ if ($disposition == "inline" && !in_array($attachment_mime_type, $inline_allowed
 // Strip characters that would break the Content-Disposition header
 $safe_attachment_name = str_replace(array('"', "\r", "\n"), "", basename($attachment_name));
 
-// Caching - allow the browser to reuse the file privately and revalidate cheaply
+// Public ticket attachments can be cached and revalidated by the authenticated browser.
 $file_mtime = filemtime($file_path);
 $etag = '"' . md5($file_mtime . filesize($file_path) . $attachment_id) . '"';
 
@@ -110,9 +110,10 @@ header("ETag: $etag");
 header("Last-Modified: " . gmdate("D, d M Y H:i:s", $file_mtime) . " GMT");
 
 // Conditional GET - browser already has this version, send 304 and stop
-if ((isset($_SERVER['HTTP_IF_NONE_MATCH']) && trim($_SERVER['HTTP_IF_NONE_MATCH']) == $etag)
+if (!$private_attachment && (
+    (isset($_SERVER['HTTP_IF_NONE_MATCH']) && trim($_SERVER['HTTP_IF_NONE_MATCH']) == $etag)
     || (isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) && strtotime($_SERVER['HTTP_IF_MODIFIED_SINCE']) >= $file_mtime)
-) {
+)) {
     http_response_code(304);
     exit;
 }
@@ -135,7 +136,13 @@ while (ob_get_level()) {
 
 if ($private_attachment) {
     echo $first_bytes;
-    fpassthru($stream);
+    while (!feof($stream)) {
+        $chunk = fread($stream, 65536);
+        if ($chunk === false || $chunk === '') {
+            break;
+        }
+        echo $chunk;
+    }
     fclose($stream);
     $archive->close();
 } else {
