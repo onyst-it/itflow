@@ -8,7 +8,7 @@ $contacts = mysqli_query($mysqli, "SELECT * FROM contacts WHERE contact_vendor_i
 ?>
 <div class="card">
     <div class="card-header bg-dark d-flex justify-content-between align-items-center">
-        <h3 class="card-title m-0"><i class="fas fa-address-book me-2"></i><?= escapeHtml($vendor['vendor_name']) ?> â€” Contacts</h3>
+        <h3 class="card-title m-0"><i class="fas fa-address-book me-2"></i><?= escapeHtml($vendor['vendor_name']) ?> — Contacts</h3>
         <?php if ($can_edit) { ?><button class="btn btn-primary ajax-modal" data-modal-url="modals/vendor/vendor_contact_edit.php?vendor_id=<?= $vendor_id ?>"><i class="fas fa-plus me-2"></i>New Contact</button><?php } ?>
     </div>
     <div class="card-body">

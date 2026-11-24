@@ -75,7 +75,7 @@ if (isset($_GET['ticket_id'])) {
         $ticket_scheduled_for = escapeHtml($ticket['ticket_schedule']);
         $ticket_onsite = intval($ticket['ticket_onsite']);
         if ($ticket_scheduled_for) {
-            $ticket_scheduled_wording = date('M d, Y â€¢ g:i A', strtotime($ticket_scheduled_for));
+            $ticket_scheduled_wording = date('M d, Y • g:i A', strtotime($ticket_scheduled_for));
         } else {
             $ticket_scheduled_wording = "Not scheduled";
         }
@@ -1349,19 +1349,19 @@ if (isset($_GET['ticket_id'])) {
                     <div class="card-body p-3" style="display: none;">
 
                         <div>
-                            <i class="fas fa-fw fa-calendar-alt text-secondary me-1"></i><strong class="me-1">Created:</strong><?= date('M d, Y â€¢ g:i A', strtotime($ticket_created_at)) ?>
+                            <i class="fas fa-fw fa-calendar-alt text-secondary me-1"></i><strong class="me-1">Created:</strong><?= date('M d, Y • g:i A', strtotime($ticket_created_at)) ?>
                             <span class="text-muted small">(<?= $ticket_created_at_ago ?>)</span>
                         </div>
 
                         <?php if ($ticket_first_response_at) { ?>
                             <div class="mt-2">
-                                <i class="fas fa-fw fa-reply-all text-secondary me-1"></i><strong class="me-1">1st response:</strong><?= date('M d â€¢ g:i A', strtotime($ticket_first_response_at)) ?>
+                                <i class="fas fa-fw fa-reply-all text-secondary me-1"></i><strong class="me-1">1st response:</strong><?= date('M d • g:i A', strtotime($ticket_first_response_at)) ?>
                             </div>
                         <?php } ?>
 
                         <?php if ($ticket_sla_id && $ticket_response_due_at) { ?>
                             <div class="mt-2">
-                                <i class="fas fa-fw fa-stopwatch text-secondary me-1"></i><strong class="me-1">Respond by:</strong><?= date('M d â€¢ g:i A', strtotime($ticket_response_due_at)) ?>
+                                <i class="fas fa-fw fa-stopwatch text-secondary me-1"></i><strong class="me-1">Respond by:</strong><?= date('M d • g:i A', strtotime($ticket_response_due_at)) ?>
                                 <?php if (!is_null($ticket_response_sla_met)) { echo $ticket_response_sla_met ? "<i class='fas fa-fw fa-check text-success ms-1' title='Response SLA met'></i>" : "<i class='fas fa-fw fa-exclamation-triangle text-danger ms-1' title='Response SLA missed'></i>"; } ?>
                             </div>
                         <?php } ?>
@@ -1372,7 +1372,7 @@ if (isset($_GET['ticket_id'])) {
                                 <?php if ($ticket_sla_paused && $ticket_is_open) { ?>
                                     <span class="text-warning"><i class="fas fa-fw fa-pause-circle me-1"></i>Paused</span>
                                 <?php } else { ?>
-                                    <?= date('M d â€¢ g:i A', strtotime($ticket_resolution_due_at)) ?>
+                                    <?= date('M d • g:i A', strtotime($ticket_resolution_due_at)) ?>
                                 <?php } ?>
                                 <?php if (!is_null($ticket_resolution_sla_met)) { echo $ticket_resolution_sla_met ? "<i class='fas fa-fw fa-check text-success ms-1' title='Resolution SLA met'></i>" : "<i class='fas fa-fw fa-exclamation-triangle text-danger ms-1' title='Resolution SLA missed'></i>"; } ?>
                             </div>
@@ -1386,14 +1386,14 @@ if (isset($_GET['ticket_id'])) {
 
                         <?php if ($ticket_resolved_at) { ?>
                             <div class="mt-2" title="<?= $ticket_resolved_at ?>">
-                                <i class="fas fa-fw fa-check text-secondary me-1"></i><strong class="me-1">Resolved:</strong><?= date('M d, Y â€¢ g:i A', strtotime($ticket_resolved_at)) ?>
+                                <i class="fas fa-fw fa-check text-secondary me-1"></i><strong class="me-1">Resolved:</strong><?= date('M d, Y • g:i A', strtotime($ticket_resolved_at)) ?>
                                 <span class="text-muted small">(<?= $ticket_resolved_at_ago ?>)</span>
                             </div>
                         <?php } ?>
 
                         <?php if ($ticket_is_closed) { ?>
                             <div class="mt-2" title="<?= $ticket_closed_at ?>">
-                                <i class="fas fa-fw fa-gavel text-secondary me-1"></i><strong class="me-1">Closed:</strong><?= date('M d, Y â€¢ g:i A', strtotime($ticket_closed_at)) ?>
+                                <i class="fas fa-fw fa-gavel text-secondary me-1"></i><strong class="me-1">Closed:</strong><?= date('M d, Y • g:i A', strtotime($ticket_closed_at)) ?>
                                 <span class="text-muted small">(<?= $ticket_closed_at_ago ?>)</span>
                             </div>
                             <div class="mt-2">
