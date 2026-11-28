@@ -76,23 +76,18 @@ require_once __DIR__ . '/../functions/ticket_email_ingest.php';
  * OAuth helpers + provider guard
  * ------------------------------------------------------------------ */
 
-// returns true if expires_at ('Y-m-d H:i:s') is in the past (or missing)
-function tokenExpired(?string $expires_at): bool {
-    if (empty($expires_at)) return true;
-    $ts = strtotime($expires_at);
-    if ($ts === false) return true;
-    // refresh a little early (60s) to avoid race
-    return ($ts - 60) <= time();
+// Refresh a little before expiry so the token remains usable during the connection.
+function tokenExpired(?string $expires_at, int $buffer_seconds = 60): bool {
+    $expiry = $expires_at ? strtotime($expires_at) : false;
+
+    return $expiry === false || $expiry - $buffer_seconds <= time();
 }
 
-// very small form-encoded POST helper using curl
 /**
- * Get a valid access token for Google Workspace IMAP via refresh token if needed.
- * Uses settings: config_mail_oauth_client_id / _client_secret / _refresh_token / _access_token / _access_token_expires_at
- * Updates globals if refreshed (so later logging can reflect it if you want to persist).
+ * Renew Google's access token while the current one can still be used.
+ * Returns the best usable token and a safe error message when renewal fails.
  */
-function getGoogleAccessToken(string $username): ?string {
-    // pull from global settings variables you already load
+function getGoogleAccessToken(string $username): array {
     global $mysqli,
            $config_mail_oauth_client_id,
            $config_mail_oauth_client_secret,
@@ -100,48 +95,110 @@ function getGoogleAccessToken(string $username): ?string {
            $config_mail_oauth_access_token,
            $config_mail_oauth_access_token_expires_at;
 
-    // If we have a not-expired token, use it
-    if (!empty($config_mail_oauth_access_token) && !tokenExpired($config_mail_oauth_access_token_expires_at)) {
-        return $config_mail_oauth_access_token;
+    $cached_token = !empty($config_mail_oauth_access_token) && !tokenExpired($config_mail_oauth_access_token_expires_at)
+        ? $config_mail_oauth_access_token
+        : null;
+
+    if ($cached_token !== null && !tokenExpired($config_mail_oauth_access_token_expires_at, 15 * 60)) {
+        return [$cached_token, null];
     }
 
-    // Need to refresh?
     if (empty($config_mail_oauth_client_id) || empty($config_mail_oauth_client_secret) || empty($config_mail_oauth_refresh_token)) {
-        // Nothing we can do
-        return null;
+        return [$cached_token, 'Google Workspace mail credentials are incomplete. Review Mail OAuth settings.'];
     }
 
-    $resp = httpFormPost(
-        'https://oauth2.googleapis.com/token',
-        [
-            'client_id'     => $config_mail_oauth_client_id,
-            'client_secret' => $config_mail_oauth_client_secret,
-            'refresh_token' => $config_mail_oauth_refresh_token,
-            'grant_type'    => 'refresh_token',
-        ]
-    );
+    $response = httpFormPost('https://oauth2.googleapis.com/token', [
+        'client_id'     => $config_mail_oauth_client_id,
+        'client_secret' => $config_mail_oauth_client_secret,
+        'refresh_token' => $config_mail_oauth_refresh_token,
+        'grant_type'    => 'refresh_token',
+    ]);
 
-    if (!$resp['ok']) return null;
+    $body = is_string($response['body']) ? json_decode($response['body'], true) : null;
+    if (!$response['ok']) {
+        $status = (int) $response['code'];
+        $problem = match ($body['error'] ?? null) {
+            'invalid_grant' => 'Google rejected the Gmail refresh token (invalid_grant). Reauthorize the support mailbox in Mail OAuth settings.',
+            'invalid_client', 'unauthorized_client' => 'Google rejected the saved OAuth client. Review Mail OAuth settings.',
+            'admin_policy_enforced', 'access_denied' => 'Google Workspace policy denied mail authorization. Review the OAuth app access policy.',
+            default => $status > 0
+                ? "Google Workspace token refresh returned HTTP $status. ITFlow will retry."
+                : 'Could not reach Google to refresh Gmail authorization. The next poll will retry.',
+        };
+        return [$cached_token, $problem];
+    }
 
-    $json = json_decode($resp['body'], true);
-    if (!is_array($json) || empty($json['access_token'])) return null;
+    $access_token = $body['access_token'] ?? null;
+    $now = time();
+    $lifetime = filter_var($body['expires_in'] ?? 3600, FILTER_VALIDATE_INT, [
+        'options' => ['min_range' => 61, 'max_range' => PHP_INT_MAX - $now],
+    ]);
+    if (!is_string($access_token) || $access_token === '' || $lifetime === false) {
+        return [$cached_token, 'Google Workspace did not return a usable access token. ITFlow will retry.'];
+    }
 
-    // Calculate new expiry
-    $expires_at = date('Y-m-d H:i:s', time() + (int)($json['expires_in'] ?? 3600));
+    $refresh_token = $body['refresh_token'] ?? null;
+    if (!is_string($refresh_token) || $refresh_token === '') {
+        $refresh_token = $config_mail_oauth_refresh_token;
+    }
 
-    // Update in-memory globals (and persist to DB)
-    $config_mail_oauth_access_token = $json['access_token'];
-    $config_mail_oauth_access_token_expires_at = $expires_at;
-
-    $at_esc  = mysqli_real_escape_string($mysqli, $config_mail_oauth_access_token);
-    $exp_esc = mysqli_real_escape_string($mysqli, $config_mail_oauth_access_token_expires_at);
-    mysqli_query($mysqli, "UPDATE settings SET
-        config_mail_oauth_access_token = '{$at_esc}',
-        config_mail_oauth_access_token_expires_at = '{$exp_esc}'
+    $expires_at = date('Y-m-d H:i:s', $now + $lifetime);
+    $save = $mysqli->prepare("UPDATE settings
+        SET config_mail_oauth_access_token = ?, config_mail_oauth_access_token_expires_at = ?,
+            config_mail_oauth_refresh_token = ?
         WHERE company_id = 1
-    ");
+          AND config_imap_provider = 'google_oauth'
+          AND BINARY config_imap_username = ?
+          AND BINARY config_mail_oauth_client_id = ?
+          AND BINARY config_mail_oauth_client_secret = ?
+          AND BINARY config_mail_oauth_refresh_token = ?");
+    $save->bind_param(
+        'sssssss',
+        $access_token,
+        $expires_at,
+        $refresh_token,
+        $username,
+        $config_mail_oauth_client_id,
+        $config_mail_oauth_client_secret,
+        $config_mail_oauth_refresh_token
+    );
+    $save->execute();
 
-    return $config_mail_oauth_access_token;
+    // The mailbox or OAuth credentials may have been edited during the request.
+    $saved = $save->affected_rows === 1;
+    $save->close();
+    if (!$saved) {
+        cronJobStop('Google mail settings changed during refresh. The next mailbox check will retry.');
+    }
+
+    $config_mail_oauth_access_token = $access_token;
+    $config_mail_oauth_access_token_expires_at = $expires_at;
+    $config_mail_oauth_refresh_token = $refresh_token;
+
+    return [$access_token, null];
+}
+
+/**
+ * Keep one active intake warning. The existing in-app notifications work even
+ * when Gmail cannot send mail. Clear this warning after a successful poll.
+ */
+function updateGoogleInboxWarning(?string $problem): void {
+    global $mysqli;
+
+    $type = 'Gmail ticket intake';
+    if ($problem === null) {
+        mysqli_query($mysqli, "UPDATE notifications
+            SET notification_dismissed_at = NOW(), notification_dismissed_by = 0
+            WHERE notification_type = '$type' AND notification_dismissed_at IS NULL");
+        return;
+    }
+
+    $open = mysqli_query($mysqli, "SELECT 1 FROM notifications
+        WHERE notification_type = '$type' AND notification_dismissed_at IS NULL LIMIT 1");
+    if (mysqli_num_rows($open) === 0) {
+        logApp('Cron-Email-Parser', 'warning', $problem);
+        appNotify($type, escapeSql($problem), '/admin/settings_mail.php?tab=oauth');
+    }
 }
 
 /**
@@ -226,10 +283,12 @@ if ($imap_provider === 'google_oauth') {
     $port = 993;
     $encr = 'ssl';
     $auth = 'oauth';
-    $pass = getGoogleAccessToken($user);
-    if (empty($pass)) {
-        logApp("Cron-Email-Parser", "error", "Google OAuth: no usable access token (check refresh token/client credentials).");
-        cronJobStop('', 1);
+    [$pass, $google_inbox_problem] = getGoogleAccessToken($user);
+    if ($google_inbox_problem !== null) {
+        updateGoogleInboxWarning($google_inbox_problem);
+    }
+    if ($pass === null) {
+        cronJobStop($google_inbox_problem, 1);
     }
 } elseif ($imap_provider === 'microsoft_oauth') {
     $host = 'outlook.office365.com';
@@ -271,6 +330,11 @@ $mailbox = new Mailbox([
 try {
     $mailbox->connect();
 } catch (\Throwable $e) {
+    if ($imap_provider === 'google_oauth') {
+        $problem = $google_inbox_problem ?? 'ITFlow could not connect to the Gmail Inbox. Run the IMAP test in Mail settings.';
+        updateGoogleInboxWarning($problem);
+        cronJobStop($problem, 1);
+    }
     echo "Error connecting to IMAP server: " . $e->getMessage();
     cronJobStop('', 1);
 }
@@ -708,6 +772,10 @@ try {
     // ignore
 }
 $mailbox->disconnect();
+
+if ($imap_provider === 'google_oauth' && $google_inbox_problem === null) {
+    updateGoogleInboxWarning(null);
+}
 
 // Execution timing (optional)
 $script_end_time = microtime(true);
