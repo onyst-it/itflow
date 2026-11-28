@@ -268,9 +268,13 @@ $imap_ready = $imap_standard_ready || $imap_oauth_ready;
                             </div>
                         </div>
                         <div class="mb-3 col-md-6">
-                            <label>OAuth Client Secret</label>
-                            <div class="input-group"><span class="input-group-text"><i class="fa fa-fw fa-key"></i></span>
-                                <input type="password" class="form-control" data-toggle="password" name="config_mail_oauth_client_secret" id="config_mail_oauth_client_secret" placeholder="Client secret value" maxlength="255" value="<?= escapeHtml($config_mail_oauth_client_secret ?? '') ?>" autocomplete="new-password"><span class="input-group-text"><i class="fa fa-fw fa-eye"></i></span>
+                            <label for="config_mail_oauth_client_secret">OAuth Client Secret</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fa fa-fw fa-key"></i></span>
+                                <input type="password" class="form-control" name="config_mail_oauth_client_secret" id="config_mail_oauth_client_secret" placeholder="Client secret value" maxlength="255" value="<?= escapeHtml($config_mail_oauth_client_secret ?? '') ?>" autocomplete="new-password">
+                                <button type="button" class="btn btn-outline-secondary" id="toggle_mail_oauth_client_secret" aria-controls="config_mail_oauth_client_secret" aria-pressed="false" aria-label="Show OAuth client secret" title="Show OAuth client secret">
+                                    <i class="fa fa-fw fa-eye" aria-hidden="true"></i>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -491,6 +495,22 @@ $imap_ready = $imap_standard_ready || $imap_oauth_ready;
     const oauthHint = document.getElementById('oauth_hint');
     const oauthClientId = document.getElementById('config_mail_oauth_client_id');
     const oauthClientSecret = document.getElementById('config_mail_oauth_client_secret');
+    const oauthSecretToggle = document.getElementById('toggle_mail_oauth_client_secret');
+
+    if (oauthClientSecret && oauthSecretToggle) {
+        const icon = oauthSecretToggle.querySelector('i');
+        oauthSecretToggle.addEventListener('click', () => {
+            const showSecret = oauthClientSecret.type === 'password';
+            const label = showSecret ? 'Hide OAuth client secret' : 'Show OAuth client secret';
+
+            oauthClientSecret.type = showSecret ? 'text' : 'password';
+            oauthSecretToggle.setAttribute('aria-pressed', String(showSecret));
+            oauthSecretToggle.setAttribute('aria-label', label);
+            oauthSecretToggle.title = label;
+            icon.classList.toggle('fa-eye', !showSecret);
+            icon.classList.toggle('fa-eye-slash', showSecret);
+        });
+    }
 
     function render() {
         const sv = val(smtpSel), iv = val(imapSel);
