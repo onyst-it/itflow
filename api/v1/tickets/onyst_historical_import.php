@@ -10,6 +10,7 @@ const ONYST_SYNCRO_IMPORT_PREFIX = 'ONY-';
 const ONYST_SYNCRO_IMPORT_PLAN = [
     'pilot' => [7, 'bb5d7d56272351b93d44d2f23bab47c2636d05a6c30685a52b850bdeae5409be'],
     'full' => [8855, 'ec8d9892f874240fd4ba277baf1d4219d42350f1a28eccb33232d27e2679592c'],
+    'delta_20261128' => [6, '9669f2bf86ecb00431df71c8d02ee012d3ffa3527315c2ff13cf17905ccc78d2'],
 ];
 
 final class OnystSyncroImportError extends RuntimeException
