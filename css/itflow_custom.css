@@ -85,6 +85,14 @@
     font-size: .75rem !important;
 }
 
+.ticket-silent-resolve {
+    --bs-btn-color: var(--bs-secondary-color);
+    --bs-btn-hover-color: var(--bs-success);
+    --bs-btn-active-color: var(--bs-success);
+    --bs-btn-disabled-color: var(--bs-secondary-color);
+    --bs-btn-focus-shadow-rgb: var(--bs-success-rgb);
+}
+
 .ticket-list-table :is(.ticket-party, .ticket-last-response, .ticket-created) {
     line-height: 1.2;
 }

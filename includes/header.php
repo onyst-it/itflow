@@ -70,7 +70,7 @@ $color_scheme = $dark_mode ? 'dark' : 'light';
              / .bg-gradient-* families. Loads BEFORE itflow_custom.css so
              our own .bg-<colour> box colours still win. */ ?>
     <link rel="stylesheet" href="/libs/adminlte/css/adminlte-colors-v3.min.css">
-    <link rel="stylesheet" href="/css/itflow_custom.css?v=ticket-list-2">
+    <link rel="stylesheet" href="/css/itflow_custom.css?v=ticket-list-3">
     <link rel="stylesheet" href="/css/onyst_theme.css?v=ticket-list-1">
 
     <!-- Scripts -->

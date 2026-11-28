@@ -334,7 +334,7 @@ if ($tickets) {
                                             <input class="form-check-input bulk-select" type="checkbox" name="ticket_ids[]" value="<?= $ticket_id ?>">
                                         </div>
                                         <?php if ($support_permission >= 2 && $ticket_is_open && !in_array(intval($row['ticket_status']), [4, 5], true)) { ?>
-                                            <button class="btn btn-sm btn-outline-success border-0 py-0" type="submit" form="ticketListSilentResolve"
+                                            <button class="btn btn-sm ticket-silent-resolve border-0 py-0" type="submit" form="ticketListSilentResolve"
                                                     name="onyst_resolve_ticket" value="<?= $ticket_id ?>" <?= $tasks_block_resolve ? 'disabled' : '' ?>
                                                     aria-label="Silently Resolve <?= $ticket_prefix . $ticket_number ?>"
                                                     title="<?= $tasks_block_resolve ? 'Complete the open tasks before resolving' : 'Silently Resolve' ?>">
