@@ -189,19 +189,37 @@ if (isset($_POST['edit_mail_from_settings'])) {
 
     validateCSRFToken();
 
+    $from_names = [];
+    foreach (['mail', 'invoice', 'quote', 'ticket'] as $purpose) {
+        $name = $_POST["config_{$purpose}_from_name"] ?? '';
+        // Display names are single-line email header text.
+        if (!is_string($name)
+            || preg_match('/[\p{Cc}\p{Zl}\p{Zp}]/u', $name) !== 0
+            || mb_strlen(trim($name), 'UTF-8') > 200
+        ) {
+            flashAlert('Use a single line of up to 200 characters for each From Name.', 'error');
+            redirect($mail_tab_redirect);
+        }
+        $from_names[$purpose] = escapeSql($name);
+    }
+
     $config_mail_from_email = escapeSql(filter_var($_POST['config_mail_from_email'], FILTER_VALIDATE_EMAIL));
-    $config_mail_from_name = escapeSql(preg_replace('/[^a-zA-Z0-9\s]/', '', $_POST['config_mail_from_name']));
-
     $config_invoice_from_email = escapeSql(filter_var($_POST['config_invoice_from_email'], FILTER_VALIDATE_EMAIL));
-    $config_invoice_from_name = escapeSql(preg_replace('/[^a-zA-Z0-9\s]/', '', $_POST['config_invoice_from_name']));
-
     $config_quote_from_email = escapeSql(filter_var($_POST['config_quote_from_email'], FILTER_VALIDATE_EMAIL));
-    $config_quote_from_name = escapeSql(preg_replace('/[^a-zA-Z0-9\s]/', '', $_POST['config_quote_from_name']));
-
     $config_ticket_from_email = escapeSql(filter_var($_POST['config_ticket_from_email'], FILTER_VALIDATE_EMAIL));
-    $config_ticket_from_name = escapeSql(preg_replace('/[^a-zA-Z0-9\s]/', '', $_POST['config_ticket_from_name']));
 
-    mysqli_query($mysqli,"UPDATE settings SET config_mail_from_email = '$config_mail_from_email', config_mail_from_name = '$config_mail_from_name', config_invoice_from_email = '$config_invoice_from_email', config_invoice_from_name = '$config_invoice_from_name', config_quote_from_email = '$config_quote_from_email', config_quote_from_name = '$config_quote_from_name', config_ticket_from_email = '$config_ticket_from_email', config_ticket_from_name = '$config_ticket_from_name' WHERE company_id = 1");
+    mysqli_query($mysqli, "
+        UPDATE settings SET
+            config_mail_from_email = '$config_mail_from_email',
+            config_mail_from_name = '{$from_names['mail']}',
+            config_invoice_from_email = '$config_invoice_from_email',
+            config_invoice_from_name = '{$from_names['invoice']}',
+            config_quote_from_email = '$config_quote_from_email',
+            config_quote_from_name = '{$from_names['quote']}',
+            config_ticket_from_email = '$config_ticket_from_email',
+            config_ticket_from_name = '{$from_names['ticket']}'
+        WHERE company_id = 1
+    ");
 
     logAudit("Settings", "Edit", "$session_name edited mail from settings");
 
