@@ -53,7 +53,7 @@ unset($_GET['billable'], $_GET['unbilled']);
 // filter_header.php built this from the raw query string - rebuild it so the
 // sort links carry the normalised params too
 $get_copy = $_GET;
-unset($get_copy['sort'], $get_copy['order']);
+unset($get_copy['sort'], $get_copy['order'], $get_copy['page'], $get_copy['priority_page']);
 $url_query_strings_sort = http_build_query($get_copy);
 
 /*
@@ -80,6 +80,7 @@ if (!in_array($sort, $sortable_columns, true)) {
 function ticketsFilterUrl($overrides = [])
 {
     $params = $_GET;
+    unset($params['page'], $params['priority_page']);
     foreach ($overrides as $name => $value) {
         if ($value === null) {
             unset($params[$name]);
@@ -87,8 +88,6 @@ function ticketsFilterUrl($overrides = [])
             $params[$name] = $value;
         }
     }
-    unset($params['page']);
-
     return escapeHtml('?' . http_build_query($params));
 }
 

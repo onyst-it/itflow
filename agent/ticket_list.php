@@ -8,45 +8,59 @@
 
 isset($mysqli) || die("Direct file access is not allowed");
 
-$query =
-    "SELECT SQL_CALC_FOUND_ROWS $ticket_select_columns
-    FROM tickets
-    $ticket_joins
-    $ticket_where
-    ORDER BY
-        CASE
-            WHEN '$sort' = 'ticket_priority' THEN
-                CASE ticket_priority
-                    WHEN 'Urgent' THEN 0
-                    WHEN 'High' THEN 1
-                    WHEN 'Medium' THEN 2
-                    WHEN 'Low' THEN 3
-                    ELSE 4
-                END
-            ELSE NULL
-        END $order,
-        $sort $order
-    LIMIT $record_from, $record_to";
+// Put legacy tickets with a blank or unrecognized priority in the Low section.
+$priority_counts = array_fill_keys(['Urgent', 'High', 'Medium', 'Low'], 0);
+$priority_bucket = "CASE ticket_priority
+    WHEN 'Urgent' THEN 'Urgent'
+    WHEN 'High' THEN 'High'
+    WHEN 'Medium' THEN 'Medium'
+    ELSE 'Low' END";
+$counts = mysqli_query($mysqli, "SELECT $priority_bucket AS list_priority, COUNT(*) AS ticket_count
+    FROM tickets $ticket_joins $ticket_where GROUP BY list_priority");
+while ($row = mysqli_fetch_assoc($counts)) {
+    $priority_counts[$row['list_priority']] = intval($row['ticket_count']);
+}
 
-$sql = mysqli_query($mysqli, $query);
-
-$num_rows = mysqli_fetch_row(mysqli_query($mysqli, "SELECT FOUND_ROWS()"));
+$section_limit = max(1, intdiv(intval($user_config_records_per_page), count($priority_counts)));
+$preview_limit = min(10, $section_limit);
+$requested_pages = is_array($_GET['priority_page'] ?? null) ? $_GET['priority_page'] : [];
+$section_pages = [];
+$section_tickets = [];
+$page_ticket_ids = [];
+$list_sort = $sort === 'ticket_priority' ? 'ticket_number' : $sort;
 
 /*
  * Collect the page before rendering so the per-row lookups can be done as two
  * grouped queries instead of three per ticket. A 100-row page used to fire
  * 300 extra queries to fill in the last reply and the task progress bar.
  */
-$tickets = array();
-while ($row = mysqli_fetch_assoc($sql)) {
-    $tickets[intval($row['ticket_id'])] = $row;
+foreach ($priority_counts as $priority => $count) {
+    $key = strtolower($priority);
+    $section_tickets[$priority] = [];
+    if (!$count) {
+        continue;
+    }
+
+    $requested_page = filter_var($requested_pages[$key] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+    if ($requested_page) {
+        $section_pages[$key] = min($requested_page, intdiv($count - 1, $section_limit) + 1);
+    }
+    $offset = (($section_pages[$key] ?? 1) - 1) * $section_limit;
+    $result = mysqli_query($mysqli, "SELECT $ticket_select_columns FROM tickets $ticket_joins $ticket_where
+        AND ($priority_bucket) = '$priority'
+        ORDER BY $list_sort $order, ticket_id $order LIMIT $offset, $section_limit");
+    while ($row = mysqli_fetch_assoc($result)) {
+        $ticket_id = intval($row['ticket_id']);
+        $section_tickets[$priority][$ticket_id] = $row;
+        $page_ticket_ids[] = $ticket_id;
+    }
 }
 
 $ticket_replies = array();
 $ticket_tasks = array();
 
-if ($tickets) {
-    $page_ticket_ids = implode(',', array_keys($tickets));
+if ($page_ticket_ids) {
+    $page_ticket_ids_sql = implode(',', $page_ticket_ids);
 
     // Fetch the latest reply for Last Response and the latest public reply for the waiting cue.
     $sql_ticket_replies = mysqli_query($mysqli,
@@ -56,7 +70,7 @@ if ($tickets) {
             SELECT MAX(ticket_reply_id) AS latest_id,
                 MAX(CASE WHEN ticket_reply_type IN ('Client', 'Public') THEN ticket_reply_id END) AS latest_public_id
             FROM ticket_replies
-            WHERE ticket_reply_ticket_id IN ($page_ticket_ids)
+            WHERE ticket_reply_ticket_id IN ($page_ticket_ids_sql)
             AND ticket_reply_archived_at IS NULL
             AND ticket_reply_auto_ack = 0
             GROUP BY ticket_reply_ticket_id
@@ -75,7 +89,7 @@ if ($tickets) {
         "SELECT task_ticket_id, COUNT(task_id) AS task_count,
             SUM(CASE WHEN task_completed_at IS NOT NULL THEN 1 ELSE 0 END) AS completed_count
         FROM tasks
-        WHERE task_ticket_id IN ($page_ticket_ids)
+        WHERE task_ticket_id IN ($page_ticket_ids_sql)
         GROUP BY task_ticket_id"
     );
     while ($row = mysqli_fetch_assoc($sql_ticket_tasks)) {
@@ -87,7 +101,7 @@ if ($tickets) {
 
 <div class="card">
 
-    <?php if (!$tickets) { ?>
+    <?php if (!$page_ticket_ids) { ?>
 
         <div class="text-center text-secondary py-5">
             <i class="fas fa-fw fa-life-ring fa-2x mb-3"></i>
@@ -106,7 +120,7 @@ if ($tickets) {
 
             <div class="table-responsive">
                 <table class="table table-striped table-borderless table-hover align-middle mb-0 ticket-list-table">
-                    <thead class="align-middle text-dark text-nowrap <?php if (!$num_rows[0]) { echo "d-none"; } ?>">
+                    <thead class="align-middle text-dark text-nowrap">
                     <tr>
                         <th scope="col" class="checkbox-column border-end">
                             <div class="d-flex align-items-center gap-1">
@@ -183,11 +197,7 @@ if ($tickets) {
                         </th>
                         <?php } ?>
 
-                        <th>
-                            <a class="text-dark" href="?<?= $url_query_strings_sort ?>&sort=ticket_priority&order=<?= $disp ?>">
-                                Priority <?php if ($sort == 'ticket_priority') { echo $order_icon; } ?>
-                            </a>
-                        </th>
+                        <th>Priority</th>
                         <th>
                             <a class="text-dark" href="?<?= $url_query_strings_sort ?>&sort=ticket_status&order=<?= $disp ?>">
                                 Status <?php if ($sort == 'ticket_status') { echo $order_icon; } ?>
@@ -213,10 +223,35 @@ if ($tickets) {
                         </th>
                     </tr>
                     </thead>
-                    <tbody>
+                    <?php
+                    $column_count = 9 + intval($show_billing_column) + intval($sla_filter_in_use);
+                    foreach ($section_tickets as $priority => $rows) {
+                        $section_key = strtolower($priority);
+                        $section_id = 'ticket-priority-' . $section_key;
+                        $section_total = $priority_counts[$priority];
+                        $section_page = $section_pages[$section_key] ?? 1;
+                        $last_page = max(1, intdiv(max(0, $section_total - 1), $section_limit) + 1);
+                        $extra_rows = isset($section_pages[$section_key]) ? 0 : max(0, count($rows) - $preview_limit);
+                        $section_url = static fn(int $page) => ticketsFilterUrl([
+                            'priority_page' => array_replace($section_pages, [$section_key => $page])
+                        ]) . '#' . $section_id;
+                        ?>
+                    <tbody id="<?= $section_id ?>" data-ticket-priority="<?= $section_key ?>" aria-labelledby="<?= $section_id ?>-heading">
+                        <tr class="table-secondary border-top">
+                            <th colspan="<?= $column_count ?>" scope="rowgroup">
+                                <h2 class="h6 mb-0" id="<?= $section_id ?>-heading">
+                                    <?= $priority ?> <small class="text-secondary fw-normal ms-1"><?= number_format($section_total) ?></small>
+                                </h2>
+                            </th>
+                        </tr>
                     <?php
 
-                    foreach ($tickets as $ticket_id => $row) {
+                    $row_index = 0;
+                    foreach ($rows as $ticket_id => $row) {
+                        if ($extra_rows && $row_index === $preview_limit) {
+                            echo '<template data-ticket-overflow>';
+                        }
+                        $row_index++;
                         $ticket_prefix = escapeHtml($row['ticket_prefix']);
                         $ticket_number = intval($row['ticket_number']);
                         $ticket_subject = escapeHtml($row['ticket_subject']);
@@ -480,8 +515,35 @@ if ($tickets) {
                     }
 
                     ?>
-
+                    <?php if ($extra_rows) { ?></template><?php } ?>
+                    <?php if ($extra_rows || $last_page > 1) { ?>
+                        <tr>
+                            <td colspan="<?= $column_count ?>" class="py-1">
+                                <?php if ($extra_rows) { ?>
+                                    <a href="<?= $section_url(1) ?>" class="btn btn-sm btn-outline-secondary py-0 px-3"
+                                       data-ticket-page="1" data-ticket-more
+                                       aria-label="Show <?= $extra_rows ?> more <?= $priority ?> tickets" title="Show <?= $extra_rows ?> more <?= $priority ?> tickets">&hellip;</a>
+                                <?php } ?>
+                                <?php if ($last_page > 1) { ?>
+                                    <nav aria-label="<?= $priority ?> ticket pages" data-ticket-page-links <?= $extra_rows ? 'hidden' : '' ?>>
+                                        <div class="d-flex align-items-center flex-wrap gap-2">
+                                            <?php if ($section_page > 1) { ?>
+                                                <a class="btn btn-sm btn-outline-secondary py-0" href="<?= $section_url($section_page - 1) ?>" data-ticket-page="<?= $section_page - 1 ?>">Previous</a>
+                                            <?php } ?>
+                                            <span class="small text-secondary">
+                                                <?= number_format(($section_page - 1) * $section_limit + 1) ?>&ndash;<?= number_format(($section_page - 1) * $section_limit + count($rows)) ?> of <?= number_format($section_total) ?>
+                                            </span>
+                                            <?php if ($section_page < $last_page) { ?>
+                                                <a class="btn btn-sm btn-outline-secondary py-0" href="<?= $section_url($section_page + 1) ?>" data-ticket-page="<?= $section_page + 1 ?>">Next</a>
+                                            <?php } ?>
+                                        </div>
+                                    </nav>
+                                <?php } ?>
+                            </td>
+                        </tr>
+                    <?php } ?>
                     </tbody>
+                    <?php } ?>
                 </table>
             </div>
         </form>
@@ -491,7 +553,10 @@ if ($tickets) {
                 <input type="hidden" name="resolution_mode" value="silent">
             </form>
         <?php } ?>
-        <?php require_once "../includes/filter_footer.php"; ?>
+        <div class="card-footer itflow-filter-footer">
+            <?php require __DIR__ . '/../includes/records_per_page.php'; ?>
+        </div>
+        <script src="/js/ticket_list.js" defer></script>
 
         <?php } ?>
 

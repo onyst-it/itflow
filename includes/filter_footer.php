@@ -27,19 +27,7 @@ if ($total_found_rows > 5) {
 
     <div class="row align-items-center g-2">
         <div class="col-auto col-sm">
-            <form action="post.php" method="post">
-                <div class="d-flex align-items-center">
-                    <select onchange="this.form.submit()" class="form-select form-select-sm w-auto" name="change_records_per_page" aria-label="Records per page">
-                        <option <?php if ($user_config_records_per_page == 5) { echo "selected"; } ?> >5</option>
-                        <option <?php if ($user_config_records_per_page == 10) { echo "selected"; } ?> >10</option>
-                        <option <?php if ($user_config_records_per_page == 20) { echo "selected"; } ?> >20</option>
-                        <option <?php if ($user_config_records_per_page == 50) { echo "selected"; } ?> >50</option>
-                        <option <?php if ($user_config_records_per_page == 100) { echo "selected"; } ?> >100</option>
-                        <option <?php if ($user_config_records_per_page == 500) { echo "selected"; } ?> >500</option>
-                    </select>
-                    <span class="text-muted small ms-2 d-none d-sm-inline">per page</span>
-                </div>
-            </form>
+            <?php require __DIR__ . '/records_per_page.php'; ?>
         </div>
 
         <?php
