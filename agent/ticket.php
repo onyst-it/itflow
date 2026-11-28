@@ -145,6 +145,11 @@ if (isset($_GET['ticket_id'])) {
         $contact_name = escapeHtml($ticket['contact_name']);
         $contact_title = escapeHtml($ticket['contact_title']);
         $contact_email = escapeHtml($ticket['contact_email']);
+        $guest_sender = ['name' => '', 'email' => ''];
+        if (!$contact_id && $ticket['ticket_source'] === 'Email') {
+            require_once __DIR__ . '/../functions/onyst_ticket_sender.php';
+            $guest_sender = onystTicketEmailSender($ticket);
+        }
         $contact_phone_country_code = escapeHtml($ticket['contact_phone_country_code']);
         $contact_phone = escapeHtml(formatPhoneNumber($ticket['contact_phone'], $contact_phone_country_code));
         $contact_extension = escapeHtml($ticket['contact_extension']);
@@ -467,6 +472,19 @@ if (isset($_GET['ticket_id'])) {
                             <span class="text-info" id="ticket_collision_viewing"></span>
                         </div>
 
+                        <?php if ($guest_sender['name'] !== '' || $guest_sender['email'] !== '') { ?>
+                            <div class="ticket-meta mt-2 text-break" id="ticketGuestSender">
+                                <span class="text-muted me-2">Guest sender</span>
+                                <?php if ($guest_sender['name'] !== '') { ?>
+                                    <strong><?= escapeHtml($guest_sender['name']) ?></strong>
+                                <?php } ?>
+                                <?php if ($guest_sender['email'] !== '') { ?>
+                                    <?php if ($guest_sender['name'] !== '') { ?><span class="mx-1 text-muted">&middot;</span><?php } ?>
+                                    <a href="mailto:<?= str_replace('%40', '@', rawurlencode($guest_sender['email'])) ?>"><?= escapeHtml($guest_sender['email']) ?></a>
+                                <?php } ?>
+                            </div>
+                        <?php } ?>
+
                     </div>
 
                     <!-- Actions -->
@@ -529,7 +547,7 @@ if (isset($_GET['ticket_id'])) {
                                         <!-- Attaching things to the ticket lives on the Linked card, next to what it attaches -->
                                         <div class="dropdown-divider"></div>
                                         <a class="dropdown-item ajax-modal" href="#" id="clientChangeTicketModalLoad" data-modal-url="modals/ticket/ticket_change_client.php?ticket_id=<?= $ticket_id ?>">
-                                            <i class="fas fa-fw fa-people-carry me-2"></i>Change Client
+                                            <i class="fas fa-fw fa-people-carry me-2"></i>Change Client / Vendor
                                         </a>
                                         <?php if (lookupUserPermission("module_support") == 3 && empty($ticket_closed_at)) { ?>
                                             <div class="dropdown-divider"></div>

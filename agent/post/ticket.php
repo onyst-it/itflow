@@ -2155,36 +2155,96 @@ if (isset($_POST['merge_ticket'])) {
 
 }
 
-if (isset($_POST['change_client_ticket'])) {
-
+if (isset($_POST['change_ticket_party']) || isset($_POST['change_client_ticket'])) {
     validateCSRFToken();
-
     enforceUserPermission('module_support', 2);
 
-    $ticket_id = intval($_POST['ticket_id']);
-    $client_id = intval($_POST['new_client_id']);
-    $contact_id = intval($_POST['new_contact_id']);
+    require_once __DIR__ . '/../../functions/onyst_ticket_party.php';
 
-    // Don't Enforce Client Access if Ticket doesn't have an assigned client
-    if ($client_id) {
-        enforceClientAccess();
+    $ticket_id = (int) ($_POST['ticket_id'] ?? 0);
+    $legacy = isset($_POST['change_client_ticket']);
+    $mode = $legacy ? 'existing' : (string) ($_POST['ticket_party_mode'] ?? 'existing');
+    $selection = $legacy ? 'client:' . (int) ($_POST['new_client_id'] ?? 0) : (string) ($_POST['ticket_party'] ?? '');
+    $new_owner = in_array($mode, ['new_client', 'new_vendor'], true);
+    $created_contact = false;
+
+    mysqli_begin_transaction($mysqli);
+    try {
+        $ticket = onystTicketForPartyChange($ticket_id, true);
+        $current_party = sprintf('%d:%d:%d', $ticket['ticket_client_id'], $ticket['ticket_vendor_id'], $ticket['ticket_contact_id']);
+        if (!$legacy && ($_POST['ticket_party_before'] ?? '') !== $current_party) {
+            throw new InvalidArgumentException('The ticket assignment changed. Open Change Client / Vendor and try again.');
+        }
+
+        if ($mode === 'existing') {
+            [$client_id, $vendor_id, $contact_id] = onystResolveTicketParty($selection);
+        } elseif ($new_owner) {
+            [$client_id, $vendor_id, $contact_id] = onystCreateTicketParty($mode, (string) ($_POST['ticket_party_name'] ?? ''));
+        } else {
+            throw new InvalidArgumentException('Choose how to set the ticket client or vendor.');
+        }
+
+        if ($legacy) {
+            $contact_id = (int) ($_POST['new_contact_id'] ?? 0);
+        } elseif ($contact_id && $contact_id === (int) $ticket['ticket_contact_id'] && $client_id === (int) $ticket['ticket_client_id']) {
+            // Keeping the same client contact also keeps any existing linked vendor.
+            $vendor_id = $vendor_id ?: (int) $ticket['ticket_vendor_id'];
+        } elseif (!$contact_id && ($_POST['ticket_match_contact'] ?? '') === '1') {
+            [$contact_id, $created_contact] = onystMatchOrCreateTicketContact(
+                $client_id,
+                $vendor_id,
+                (string) ($_POST['ticket_contact_name'] ?? ''),
+                (string) ($_POST['ticket_contact_email'] ?? ''),
+                $new_owner
+            );
+        }
+
+        onystValidateTicketContact($client_id, $vendor_id, $contact_id);
+
+        $owner_changed = (int) $ticket['ticket_client_id'] !== $client_id || (int) $ticket['ticket_vendor_id'] !== $vendor_id;
+        if ($owner_changed || $legacy) {
+            // Preserve the existing privacy behavior when a ticket changes hands.
+            mysqli_query($mysqli, "UPDATE ticket_replies SET ticket_reply_type = 'Internal' WHERE ticket_reply_ticket_id = $ticket_id");
+        }
+
+        mysqli_query($mysqli, "UPDATE tickets SET ticket_client_id = $client_id, ticket_vendor_id = $vendor_id,
+            ticket_contact_id = $contact_id WHERE ticket_id = $ticket_id LIMIT 1");
+
+        if ($owner_changed || $legacy) {
+            applyTicketSla($ticket_id);
+        }
+        if ($new_owner) {
+            $owner_type = $vendor_id ? 'Vendor' : 'Client';
+            logAudit($owner_type, 'Create', "$session_name created a " . strtolower($owner_type) . " from ticket $ticket_id", $client_id, $vendor_id ?: $client_id);
+        }
+        if ($created_contact) {
+            logAudit($vendor_id ? 'Vendor Contact' : 'Contact', 'Create', "$session_name created a contact from ticket $ticket_id", $client_id, $contact_id);
+        }
+        logTicketHistory($ticket_id, "$session_name updated the ticket client, vendor, or contact");
+        logAudit('Ticket', 'Change', "$session_name updated the ticket client, vendor, or contact", $client_id, $ticket_id);
+
+        mysqli_commit($mysqli);
+    } catch (InvalidArgumentException $error) {
+        mysqli_rollback($mysqli);
+        flashAlert(escapeHtml($error->getMessage()), 'error');
+        redirect('ticket.php?ticket_id=' . $ticket_id);
+    } catch (Throwable $error) {
+        mysqli_rollback($mysqli);
+        logApp('Ticket', 'error', "Client or vendor assignment failed for ticket $ticket_id.");
+        flashAlert('Could not save the client, vendor, or contact. The ticket assignment was not changed.', 'error');
+        redirect('ticket.php?ticket_id=' . $ticket_id);
     }
 
-    // Set any/all existing replies to internal
-    mysqli_query($mysqli, "UPDATE ticket_replies SET ticket_reply_type = 'Internal' WHERE ticket_reply_ticket_id = $ticket_id");
-
-    // Update ticket client & contact
-    mysqli_query($mysqli, "UPDATE tickets SET ticket_client_id = $client_id, ticket_contact_id = $contact_id WHERE ticket_id = $ticket_id LIMIT 1");
-    applyTicketSla($ticket_id);
-
-    logAudit("Ticket", "Change", "$session_name changed ticket client", $client_id, $ticket_id);
+    if ($mode === 'new_client') {
+        $folder = __DIR__ . "/../../uploads/clients/$client_id";
+        if (!is_dir($folder) && @mkdir($folder)) {
+            file_put_contents("$folder/index.php", '');
+        }
+    }
 
     triggerCustomAction('ticket_update', $ticket_id);
-
-    flashAlert("Ticket client updated");
-
-    redirect();
-
+    flashAlert('Ticket assignment saved.');
+    redirect('ticket.php?ticket_id=' . $ticket_id);
 }
 
 // Resolution actions are handled by onyst_resolution.php (silent by default).

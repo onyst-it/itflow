@@ -9,7 +9,7 @@
         const picker = initTomSelect(select, {
             valueField: 'value', labelField: 'label', searchField: 'label', options: initial,
             placeholder: context === 'ticket' ? 'Search clients, vendors, or contacts' : 'Search clients or vendors',
-            preload: 'focus', loadThrottle: 250,
+            preload: 'focus', loadThrottle: 250, maxOptions: 110,
             load: function (query, callback) {
                 itflowGet('ajax.php', {onyst_party_search: 1, context: context, q: query}, function (data) {
                     try { callback(JSON.parse(data).parties || []); } catch (_) { callback(); }
