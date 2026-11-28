@@ -97,7 +97,9 @@ if ($tickets) {
             <?php } ?>
         </div>
 
-    <?php } else { ?>
+    <?php } else {
+        $support_permission = lookupUserPermission("module_support");
+        ?>
 
         <form id="bulkActions" action="post.php" method="post">
             <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
@@ -111,7 +113,7 @@ if ($tickets) {
                                 <div class="form-check">
                                     <input class="form-check-input" id="selectAllCheckbox" type="checkbox" aria-label="Select all tickets on this page" title="Select all on this page">
                                 </div>
-                                <?php if (lookupUserPermission("module_support") >= 2) { ?>
+                                <?php if ($support_permission >= 2) { ?>
                                     <div class="dropdown">
                                         <button class="btn btn-sm btn-outline-secondary py-0 px-1 ticket-bulk-toggle dropdown-toggle" id="bulkActionToggle"
                                                 type="button" data-bs-toggle="dropdown" data-bs-config='{"popperConfig":{"strategy":"fixed"}}'
@@ -139,7 +141,7 @@ if ($tickets) {
                                                 <i class="fas fa-fw fa-clone me-2"></i>Merge
                                             </a>
                                             <?php require __DIR__ . "/includes/onyst_bulk_resolution_menu.php"; ?>
-                                            <?php if (lookupUserPermission("module_support") === 3) { ?>
+                                            <?php if ($support_permission === 3) { ?>
                                                 <div class="dropdown-divider"></div>
                                                 <button class="dropdown-item text-danger text-bold confirm-link" type="submit" form="bulkActions" name="bulk_delete_tickets">
                                                     <i class="fas fa-fw fa-trash me-2"></i>Delete
@@ -295,6 +297,7 @@ if ($tickets) {
                         $task_count = isset($ticket_tasks[$ticket_id]) ? intval($ticket_tasks[$ticket_id]['task_count']) : 0;
                         $completed_task_count = isset($ticket_tasks[$ticket_id]) ? intval($ticket_tasks[$ticket_id]['completed_count']) : 0;
                         $tasks_completed_percent = $task_count ? round(($completed_task_count / $task_count) * 100) : 0;
+                        $tasks_block_resolve = $task_count !== $completed_task_count;
 
                         // Only public correspondence changes who owes the next reply.
                         $waiting_on_us = $ticket_is_open && ($ticket_replies[$ticket_id]['last_public_reply_type'] ?? 'Client') === 'Client';
@@ -326,9 +329,19 @@ if ($tickets) {
                             <td class="checkbox-column bg-light border-end">
                                 <!-- Ticket Bulk Select (for open tickets) -->
                                 <?php if (empty($ticket_closed_at)) { ?>
-                                <div class="form-check">
-                                    <input class="form-check-input bulk-select" type="checkbox" name="ticket_ids[]" value="<?= $ticket_id ?>">
-                                </div>
+                                    <div class="d-flex align-items-center gap-1">
+                                        <div class="form-check">
+                                            <input class="form-check-input bulk-select" type="checkbox" name="ticket_ids[]" value="<?= $ticket_id ?>">
+                                        </div>
+                                        <?php if ($support_permission >= 2 && $ticket_is_open && !in_array(intval($row['ticket_status']), [4, 5], true)) { ?>
+                                            <button class="btn btn-sm btn-outline-success border-0 py-0" type="submit" form="ticketListSilentResolve"
+                                                    name="onyst_resolve_ticket" value="<?= $ticket_id ?>" <?= $tasks_block_resolve ? 'disabled' : '' ?>
+                                                    aria-label="Silently Resolve <?= $ticket_prefix . $ticket_number ?>"
+                                                    title="<?= $tasks_block_resolve ? 'Complete the open tasks before resolving' : 'Silently Resolve' ?>">
+                                                <i class="fas fa-fw fa-check" aria-hidden="true"></i>
+                                            </button>
+                                        <?php } ?>
+                                    </div>
                                 <?php } ?>
                             </td>
 
@@ -472,6 +485,12 @@ if ($tickets) {
                 </table>
             </div>
         </form>
+        <?php if ($support_permission >= 2) { ?>
+            <form id="ticketListSilentResolve" action="post.php" method="post">
+                <input type="hidden" name="csrf_token" value="<?= escapeHtml($_SESSION['csrf_token']) ?>">
+                <input type="hidden" name="resolution_mode" value="silent">
+            </form>
+        <?php } ?>
         <?php require_once "../includes/filter_footer.php"; ?>
 
         <?php } ?>
